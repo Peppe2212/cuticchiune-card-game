@@ -1,7 +1,7 @@
 import { ref, get, set, update, onValue } from "firebase/database";
 import { db } from "./firebase";
 import { createDeck, shuffleDeck, dealCards } from '../logic/deck';
-import { findFiveOfCoinsHolder, isValidMove} from '../logic/rules';
+import { findFiveOfCoinsHolder, isValidMove, determineTrickWinner, calculateTrickPoints } from '../logic/rules';
 
 // La struttura di base di una stanza appena creata
 const INITIAL_ROOM_STATE = {
@@ -23,7 +23,6 @@ export async function joinOrCreateRoom(roomId) {
   return true;
 }
 
-// 2. Aggiunge il giocatore al tavolo (se c'è posto)
 // 2. Aggiunge il giocatore al tavolo (se c'è posto)
 export async function sitAtTable(roomId, playerId, playerName) {
   try {
@@ -73,41 +72,46 @@ export function subscribeToRoom(roomId, callback) {
   return unsubscribe;
 }
 
-// 4. Avvia la primissima partita
-export async function startGame(roomId, playersData) {
-  // Crea e mischia il mazzo
+// 4. Avvia la partita: mescola, distribuisce e cerca il 5 di denari
+export async function startGame(roomId, roomData) {
   const deck = shuffleDeck(createDeck());
-  const playerIds = Object.keys(playersData);
-  
-  // Distribuisce le 10 carte a testa
+  const playerIds = Object.keys(roomData.players);
   const hands = dealCards(deck, playerIds);
-  
-  // Trova chi ha il 5 di denari per il primissimo turno
-  const startingPlayerId = findFiveOfCoinsHolder(hands);
 
-  // Inizializza le singhe a 0 per tutti i giocatori
-  const initialSinghe = {};
-  playerIds.forEach(id => initialSinghe[id] = 0);
+  const updatedPlayers = { ...roomData.players };
+  let startingPlayerId = playerIds[0]; // Fallback di sicurezza
 
-  // Aggiorna l'oggetto players con le carte in mano
-  const updatedPlayers = { ...playersData };
+  // Assegna le mani e cerca il 5 di denari
   playerIds.forEach(id => {
     updatedPlayers[id].hand = hands[id];
-    updatedPlayers[id].points = 0;       // Punti presi nella mano corrente
-    updatedPlayers[id].validTricks = 0;  // Prese >= 1 punto (per la franchezza)
+    updatedPlayers[id].points = 0;
+    updatedPlayers[id].validTricks = 0;
+
+    // Controlla se il giocatore ha il 5 di denari
+    const has5Denari = hands[id].some(card => 
+      (card.label === '5' || card.value === '5') && 
+      card.suit.toLowerCase() === 'denari'
+    );
+
+    if (has5Denari) {
+      startingPlayerId = id;
+    }
   });
 
-  // Salva tutto su Firebase e cambia lo status in 'playing'
+  // Azzera le statistiche per una partita pulita
   const updates = {
     status: 'playing',
     players: updatedPlayers,
-    turnIndex: startingPlayerId, 
-    tableCards: [], // Le 4 carte che verranno giocate nel giro
-    singhe: initialSinghe
+    turnIndex: startingPlayerId, // Il turno va a chi ha il 5 di denari
+    tableCards: [],
+    singhe: {},
+    lastLoser: null,
+    losers: null
   };
 
   await update(ref(db, `rooms/${roomId}`), updates);
 }
+
 // 5. [SOLO PER TEST] Riempie i posti vuoti con giocatori fittizi
 export async function fillTableWithDummies(roomId) {
   const roomRef = ref(db, `rooms/${roomId}`);
@@ -176,6 +180,126 @@ export async function playCard(roomId, playerId, cardToPlay, roomData) {
   }
 
   // Applica le modifiche a Firebase
+  await update(ref(db), updates);
+}
+
+// 7. [AUTO-PLAY BOT] Intelligenza Artificiale Euristica per il Bot
+export async function playBotTurn(roomId) {
+  try {
+    // 1. Il bot legge il tavolo aggiornato
+    const snapshot = await get(ref(db, `rooms/${roomId}`));
+    if (!snapshot.exists()) return;
+    const roomData = snapshot.val();
+
+    const botId = roomData.turnIndex;
+    if (!botId) return;
+    
+    const botHand = roomData.players[botId]?.hand;
+    if (!botHand || botHand.length === 0) return;
+
+    const tableCards = roomData.tableCards || [];
+    const leadSuit = tableCards.length > 0 ? tableCards[0].card.suit : null;
+
+    // 2. Filtra le carte valide per rispondere a seme
+    let validCards = botHand;
+    if (leadSuit) {
+      const matchingSuit = botHand.filter(c => c.suit === leadSuit);
+      if (matchingSuit.length > 0) validCards = matchingSuit;
+    }
+
+    // 3. Ordina le carte per forza (dal più scarso al più forte)
+    const powerOrder = ['4', '5', '6', '7', 'Donna', 'Cavallo', 'Re', 'Asso', '2', '3'];
+    validCards.sort((a, b) => {
+      const valA = a.label || a.value;
+      const valB = b.label || b.value;
+      return powerOrder.indexOf(valA) - powerOrder.indexOf(valB);
+    });
+
+    let chosenCard;
+
+    if (tableCards.length === 0) {
+      // Primo a giocare: butta la carta più debole
+      chosenCard = validCards[0];
+      console.log(`🤖 Bot gioca come primo: scelgo la più debole (${chosenCard.label} di ${chosenCard.suit})`);
+    } else {
+      // Cerca chi sta vincendo
+      let currentWinningCard = tableCards[0].card;
+      tableCards.forEach(play => {
+        const playVal = play.card.label || play.card.value;
+        const winVal = currentWinningCard.label || currentWinningCard.value;
+        if (play.card.suit === leadSuit && powerOrder.indexOf(playVal) > powerOrder.indexOf(winVal)) {
+          currentWinningCard = play.card;
+        }
+      });
+
+      const winVal = currentWinningCard.label || currentWinningCard.value;
+      
+      const canWinCards = validCards.filter(c => {
+        const cVal = c.label || c.value;
+        return c.suit === leadSuit && powerOrder.indexOf(cVal) > powerOrder.indexOf(winVal);
+      });
+
+      const hasPoints = tableCards.some(play => {
+        const pVal = play.card.label || play.card.value;
+        return powerOrder.indexOf(pVal) >= 4; // Da Donna a 3
+      });
+
+      if (canWinCards.length > 0 && hasPoints) {
+        chosenCard = canWinCards[0];
+        console.log(`🤖 C'è bottino! Supero e prendo con ${chosenCard.label} di ${chosenCard.suit}`);
+      } else {
+        chosenCard = validCards[0];
+        console.log(`🤖 Niente bottino o non posso vincere. Sacrifico ${chosenCard.label} di ${chosenCard.suit}`);
+      }
+    }
+
+    // 4. Esegue la mossa
+    await playCard(roomId, botId, chosenCard, roomData);
+    
+  } catch (error) {
+    console.error("❌ Il bot è andato in crash durante il turno:", error);
+  }
+}
+
+// 8. Risolve la presa: decreta il vincitore, assegna i punti e pulisce il tavolo
+export async function resolveTrick(roomId, roomData) {
+  if (roomData.status !== 'resolving_trick') return;
+
+  const tableCards = roomData.tableCards;
+  
+  // 1. Chi ha vinto la presa? (La carta più alta del seme di apertura)
+  const winnerId = determineTrickWinner(tableCards);
+
+  // 2. È l'ultima mano? (Controlliamo se le carte in mano sono finite)
+  // Prendiamo un giocatore a caso per vedere se ha 0 carte
+  const anyPlayer = Object.values(roomData.players)[0];
+  const isLastTrick = anyPlayer.hand === undefined || anyPlayer.hand.length === 0;
+
+  // 3. Calcola i punti totali di queste 4 carte (con bonus +3 se è l'ultima)
+  const points = calculateTrickPoints(tableCards, isLastTrick);
+
+  // 4. Aggiorna il bottino del vincitore
+  const winnerData = roomData.players[winnerId];
+  const newPoints = (winnerData.points || 0) + points;
+  
+  // Se la presa vale almeno 1 punto, aumenta il contatore delle prese valide per la "franchezza"
+  const newValidTricks = (winnerData.validTricks || 0) + (points >= 1 ? 1 : 0);
+
+  // Prepara l'aggiornamento per Firebase
+  const updates = {
+    [`rooms/${roomId}/tableCards`]: [], // Pulisce il tavolo
+    [`rooms/${roomId}/players/${winnerId}/points`]: newPoints,
+    [`rooms/${roomId}/players/${winnerId}/validTricks`]: newValidTricks,
+    [`rooms/${roomId}/turnIndex`]: winnerId, // Il vincitore è il primo a giocare al turno dopo
+  };
+
+  // Se i giocatori non hanno più carte, la mano è finita e bisogna calcolare le singhe
+  if (isLastTrick) {
+    updates[`rooms/${roomId}/status`] = 'hand_over'; 
+  } else {
+    updates[`rooms/${roomId}/status`] = 'playing';
+  }
+
   await update(ref(db), updates);
 }
 
