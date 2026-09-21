@@ -1,7 +1,7 @@
 import { ref, get, set, update, onValue } from "firebase/database";
 import { db } from "./firebase";
 import { createDeck, shuffleDeck, dealCards } from '../logic/deck';
-import { findFiveOfCoinsHolder } from '../logic/rules';
+import { findFiveOfCoinsHolder, isValidMove} from '../logic/rules';
 
 // La struttura di base di una stanza appena creata
 const INITIAL_ROOM_STATE = {
@@ -131,4 +131,147 @@ export async function fillTableWithDummies(roomId) {
     // Aggiorna Firebase in un colpo solo
     await update(ref(db), updates);
   }
+}
+
+// 6. Gioca una carta dalla mano al tavolo
+export async function playCard(roomId, playerId, cardToPlay, roomData) {
+  // Controlli di sicurezza di base
+  if (roomData.turnIndex !== playerId) return; 
+
+  const myHand = roomData.players[playerId].hand;
+  const tableCards = roomData.tableCards || [];
+  
+  // Trova il seme di apertura (se ci sono già carte a terra)
+  const leadSuit = tableCards.length > 0 ? tableCards[0].card.suit : null;
+
+  // Controllo regole: il giocatore sta rispettando l'obbligo di seme?
+  if (!isValidMove(cardToPlay, myHand, leadSuit)) {
+    alert(`Devi rispondere a seme! (Seme richiesto: ${leadSuit})`);
+    return;
+  }
+
+  // Rimuove la carta dalla mano del giocatore
+  const updatedHand = myHand.filter(c => c.id !== cardToPlay.id);
+
+  // Aggiunge la carta al tavolo, salvando anche l'ID di chi l'ha giocata
+  const newTableCards = [...tableCards, { playerId, card: cardToPlay }];
+
+  // Determina di chi è il prossimo turno (ordine circolare/antiorario)
+  const playerIds = Object.keys(roomData.players);
+  const currentIndex = playerIds.indexOf(playerId);
+  const nextTurnIndex = playerIds[(currentIndex + 1) % playerIds.length];
+
+  // Prepara l'aggiornamento per Firebase
+  const updates = {
+    [`rooms/${roomId}/players/${playerId}/hand`]: updatedHand,
+    [`rooms/${roomId}/tableCards`]: newTableCards,
+  };
+
+  // Se il giro non è finito (meno di 4 carte a terra), passa il turno
+  if (newTableCards.length < 4) {
+    updates[`rooms/${roomId}/turnIndex`] = nextTurnIndex;
+  } else {
+    // Se le carte sono 4, blocca temporaneamente i turni per risolvere la presa
+    updates[`rooms/${roomId}/status`] = 'resolving_trick';
+  }
+
+  // Applica le modifiche a Firebase
+  await update(ref(db), updates);
+}
+
+// 9. Calcola i risultati della mano e assegna le singhe
+export async function processHandOver(roomId, roomData) {
+  if (roomData.status !== 'hand_over') return;
+
+  const playerIds = Object.keys(roomData.players);
+  const singhe = { ...roomData.singhe };
+  
+  // Trova il punteggio più basso di questa mano
+  let minPoints = Math.min(...playerIds.map(id => roomData.players[id].points || 0));
+
+  let matchOver = false;
+  let losers = [];
+  let lastLoser = null; // Ci serve per capire chi farà il mazziere/inizierà il prossimo turno
+
+  playerIds.forEach(id => {
+    const p = roomData.players[id];
+    
+    // REGOLA DELLA SINGA: Prende la singa chi fa il punteggio più basso 
+    // OPPURE chi non è "uscito franco" (nessuna presa da almeno 1 punto)
+    if (p.points === minPoints || (p.validTricks || 0) === 0) {
+      singhe[id] = (singhe[id] || 0) + 1;
+      lastLoser = id; // Segniamo chi ha perso per il cambio mazziere
+    }
+
+    // CONDIZIONE FINE PARTITA (5 Singhe)
+    if (singhe[id] >= 5) {
+      // Qui si incastra l'eccezione "esce franco": se ha 5 singhe ma in questa esatta
+      // mano ha fatto punti validi, si potrebbe salvare (dipende dalla variante esatta che giochi).
+      // Per ora applichiamo la regola base: 5 = Fine partita.
+      matchOver = true;
+      losers.push(p.name);
+    }
+  });
+
+  const updates = {};
+  updates[`rooms/${roomId}/singhe`] = singhe;
+  updates[`rooms/${roomId}/lastLoser`] = lastLoser || roomData.turnIndex;
+
+  if (matchOver) {
+    updates[`rooms/${roomId}/status`] = 'game_over';
+    updates[`rooms/${roomId}/losers`] = losers;
+  } else {
+    updates[`rooms/${roomId}/status`] = 'between_hands'; // Pausa per mostrare i punteggi
+  }
+  
+  await update(ref(db), updates);
+}
+
+// 10. Avvia la mano successiva dopo aver mostrato i punteggi
+export async function startNextHand(roomId, roomData) {
+  const deck = shuffleDeck(createDeck());
+  const playerIds = Object.keys(roomData.players);
+  const hands = dealCards(deck, playerIds);
+  
+  // Il primo a giocare è l'ultimo ad aver preso la singa
+  const startingPlayerId = roomData.lastLoser || playerIds[0];
+
+  const updatedPlayers = { ...roomData.players };
+  playerIds.forEach(id => {
+    updatedPlayers[id].hand = hands[id];
+    updatedPlayers[id].points = 0;       
+    updatedPlayers[id].validTricks = 0;  
+  });
+
+  const updates = {
+    status: 'playing',
+    players: updatedPlayers,
+    turnIndex: startingPlayerId, 
+    tableCards: []
+  };
+
+  await update(ref(db, `rooms/${roomId}`), updates);
+}
+
+// 11. Azzera tutto per una nuova partita (Rivincita)
+export async function resetGame(roomId, roomData) {
+  const updates = {};
+  const playerIds = Object.keys(roomData.players);
+  
+  // Resetta le mani e i punteggi dei giocatori
+  playerIds.forEach(id => {
+    updates[`rooms/${roomId}/players/${id}/hand`] = [];
+    updates[`rooms/${roomId}/players/${id}/points`] = 0;
+    updates[`rooms/${roomId}/players/${id}/validTricks`] = 0;
+  });
+
+  // Azzera i contatori della stanza e cambia lo stato
+  updates[`rooms/${roomId}/singhe`] = {};
+  updates[`rooms/${roomId}/lastLoser`] = null;
+  updates[`rooms/${roomId}/tableCards`] = [];
+  updates[`rooms/${roomId}/losers`] = null;
+  updates[`rooms/${roomId}/turnIndex`] = null;
+  updates[`rooms/${roomId}/status`] = 'waiting'; // Torna al pulsante "Diamo le carte!"
+
+  await update(ref(db), updates);
 }

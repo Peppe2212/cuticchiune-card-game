@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { joinOrCreateRoom, sitAtTable, subscribeToRoom, startGame, fillTableWithDummies } from '../services/gameSync'
+import { joinOrCreateRoom, sitAtTable, subscribeToRoom, startGame, fillTableWithDummies, playCard, processHandOver, startNextHand, resetGame} from '../services/gameSync'
 
 export default function Room() {
     const { roomId } = useParams()
@@ -30,6 +30,22 @@ export default function Room() {
     const unsubscribe = subscribeToRoom(roomId, (data) => {
       setRoomData(data);
     });
+
+    // Auto-avanzamento dalla schermata punteggi (indispensabile per far continuare i bot da soli)
+  useEffect(() => {
+    if (roomData?.status === 'between_hands') {
+      const playerIds = Object.keys(roomData.players);
+      
+      // Deleghiamo il timer al "Giocatore 1" per evitare che 4 browser contino i secondi in simultanea
+      if (playerIds[0] === playerId) {
+        const timer = setTimeout(() => {
+          startNextHand(roomId, roomData);
+        }, 6000); // 6 secondi di pausa per leggere il tabellone
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [roomData, roomId, playerId]);
 
     return () => unsubscribe(); // Spegne il radar uscendo
   }, [roomId]);
@@ -70,7 +86,9 @@ export default function Room() {
   }
 
   // Schermata 2: Il tavolo verde vero e proprio
-  const players = roomData?.players ? Object.values(roomData.players) : [];
+  const players = roomData?.players 
+    ? Object.entries(roomData.players).map(([id, p]) => ({ id, ...p })) 
+    : [];
 
   // Schermata 3: IL GIOCO VERO E PROPRIO
   if (roomData?.status === 'playing') {
@@ -88,7 +106,17 @@ export default function Room() {
         {/* Centro del tavolo (Carte giocate) */}
         <div className="flex-1 flex items-center justify-center border-4 border-green-700 rounded-full mx-8 my-4 bg-green-900 shadow-inner min-h-[40vh]">
           {roomData.tableCards && roomData.tableCards.length > 0 ? (
-            <div className="text-white">Ci sono {roomData.tableCards.length} carte sul tavolo</div>
+            <div className="flex gap-4">
+              {roomData.tableCards.map((play, idx) => (
+                <div key={idx} className="bg-white rounded p-3 text-center border-2 border-gray-300 w-24 h-36 flex flex-col justify-between shadow-2xl transform hover:scale-110 transition-transform">
+                  <span className="text-base font-bold text-gray-800">{play.card.label}</span>
+                  <span className="text-sm text-gray-500">di {play.card.suit}</span>
+                  <span className="text-xs text-gray-400 mt-2 truncate bg-gray-100 rounded p-1">
+                    {roomData.players[play.playerId].name}
+                  </span>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="text-green-700 font-bold text-2xl">Nessuna carta a terra</div>
           )}
@@ -96,18 +124,70 @@ export default function Room() {
 
         {/* Le mie carte in mano */}
         <div className="bg-green-900 p-4 rounded-t-2xl">
-          <h3 className="text-white text-center mb-2">
-            La tua mano ({myData.name}) {isMyTurn ? " - È IL TUO TURNO!" : ""}
+          <h3 className="text-white text-center mb-4 text-xl">
+            La tua mano ({myData.name}) {isMyTurn ? " - È IL TUO TURNO! ⬇️" : ""}
           </h3>
           <div className="flex flex-wrap justify-center gap-2">
             {myData.hand && myData.hand.map((card, idx) => (
-              <div key={idx} className="bg-white rounded p-2 text-center border-2 border-gray-300 w-20 h-28 flex flex-col justify-between">
+              <div 
+                key={idx} 
+                onClick={() => isMyTurn ? playCard(roomId, playerId, card, roomData) : null}
+                className={`bg-white rounded p-2 text-center border-2 border-gray-300 w-20 h-28 flex flex-col justify-between select-none
+                  ${isMyTurn 
+                    ? 'cursor-pointer hover:-translate-y-4 hover:border-yellow-500 hover:shadow-xl transition-all' 
+                    : 'opacity-70 cursor-not-allowed'}`}
+              >
                 <span className="text-sm font-bold text-gray-800">{card.label}</span>
                 <span className="text-xs text-gray-500">di {card.suit}</span>
               </div>
             ))}
           </div>
         </div>
+
+      </div>
+    )
+  }
+
+ // Schermata 4: TABELLONE PUNTEGGI (Tra una mano e l'altra)
+  if (roomData?.status === 'between_hands') {
+    return (
+      <div className="min-h-screen bg-green-900 flex flex-col items-center justify-center p-4">
+        <div className="bg-green-800 p-8 rounded-2xl border-4 border-yellow-600 max-w-lg w-full text-center shadow-2xl">
+          <h2 className="text-3xl text-yellow-500 font-bold mb-6">Mano Terminata!</h2>
+          
+          <div className="space-y-4 mb-8 text-left">
+            {players.map((p, idx) => {
+              const mySinghe = roomData.singhe?.[p.id] || 0;
+              return (
+                <div key={idx} className="bg-green-700 p-4 rounded flex justify-between items-center text-white text-lg">
+                  <span className="font-bold">{p.name}</span>
+                  <div className="flex gap-4">
+                    <span>Prese: {p.points} pt</span>
+                    <span className="text-red-400 font-bold">Singhe: {mySinghe}/5</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <button 
+            onClick={() => startNextHand(roomId, roomData)}
+            className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-4 rounded-xl text-xl transition-all"
+          >
+            Distribuisci Nuova Mano
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Schermata 5: GAME OVER (Qualcuno ha raggiunto 5 singhe)
+  if (roomData?.status === 'game_over') {
+    return (
+      <div className="min-h-screen bg-red-900 flex flex-col items-center justify-center p-4">
+         <h1 className="text-6xl text-white font-bold mb-4">FINE PARTITA</h1>
+         <h2 className="text-3xl text-yellow-400 mb-8">{roomData.losers?.join(', ')} ha perso (5 Singhe!)</h2>
+         {/* Qui in futuro potremo aggiungere il pulsante per resettare a 0 le singhe e rifare la rivincita */}
       </div>
     )
   }
@@ -161,5 +241,24 @@ export default function Room() {
 
     </div>
   )
+
+  // Schermata 5: GAME OVER (Qualcuno ha raggiunto 5 singhe)
+  if (roomData?.status === 'game_over') {
+    return (
+      <div className="min-h-screen bg-red-900 flex flex-col items-center justify-center p-4">
+         <h1 className="text-6xl text-white font-bold mb-4 animate-pulse">FINE PARTITA</h1>
+         <h2 className="text-3xl text-yellow-400 mb-12 text-center uppercase tracking-widest">
+           {roomData.losers?.join(', ')} prende 5 Singhe e perde!
+         </h2>
+         
+         <button 
+           onClick={() => resetGame(roomId, roomData)}
+           className="bg-white text-red-900 font-bold py-4 px-12 rounded-full text-2xl shadow-xl hover:bg-gray-200 transition-transform transform hover:scale-105"
+         >
+           🔄 Gioca la Rivincita
+         </button>
+      </div>
+    )
+  }
 }
 
