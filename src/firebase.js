@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database"; // Aggiunto per il database in tempo reale
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBaiKtvFEEHL7y1CpjyL-cBgxgTUrSPH0k",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "cuticchiune-card-game.firebaseapp.com",
   databaseURL: "https://cuticchiune-card-game-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "cuticchiune-card-game",
