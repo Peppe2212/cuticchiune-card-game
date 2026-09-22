@@ -139,47 +139,60 @@ export async function fillTableWithDummies(roomId) {
 
 // 6. Gioca una carta dalla mano al tavolo
 export async function playCard(roomId, playerId, cardToPlay, roomData) {
-  // Controlli di sicurezza di base
   if (roomData.turnIndex !== playerId) return; 
 
   const myHand = roomData.players[playerId].hand;
   const tableCards = roomData.tableCards || [];
-  
-  // Trova il seme di apertura (se ci sono già carte a terra)
   const leadSuit = tableCards.length > 0 ? tableCards[0].card.suit : null;
 
-  // Controllo regole: il giocatore sta rispettando l'obbligo di seme?
+  // 🔴 NUOVA REGOLA: Se non risponde a seme, fine della mano e singa punitiva!
   if (!isValidMove(cardToPlay, myHand, leadSuit)) {
-    alert(`Devi rispondere a seme! (Seme richiesto: ${leadSuit})`);
-    return;
+    const playerName = roomData.players[playerId].name;
+    const currentSinghe = roomData.singhe?.[playerId] || 0;
+    const newSingheCount = currentSinghe + 1;
+    
+    const updates = {
+      [`rooms/${roomId}/singhe/${playerId}`]: newSingheCount,
+      [`rooms/${roomId}/lastLoser`]: playerId,
+      [`rooms/${roomId}/penaltyInfo`]: {
+        name: playerName,
+        wrongSuit: cardToPlay.suit,
+        expectedSuit: leadSuit,
+        isGameOver: newSingheCount >= 5 // Controlla se questa singa lo elimina
+      },
+      [`rooms/${roomId}/status`]: 'suit_penalty' // Passa alla nuova schermata teatrale
+    };
+
+    // Se la singa punitiva è la quinta, segniamolo come perdente
+    if (newSingheCount >= 5) {
+      let losers = roomData.losers || [];
+      if (!losers.includes(playerName)) losers.push(playerName);
+      updates[`rooms/${roomId}/losers`] = losers;
+    }
+
+    await update(ref(db), updates);
+    return; // Ferma il gioco qui, la mano è saltata!
   }
 
-  // Rimuove la carta dalla mano del giocatore
+  // --- SE LA MOSSA È VALIDA, CONTINUA NORMALMENTE ---
   const updatedHand = myHand.filter(c => c.id !== cardToPlay.id);
-
-  // Aggiunge la carta al tavolo, salvando anche l'ID di chi l'ha giocata
   const newTableCards = [...tableCards, { playerId, card: cardToPlay }];
-
-  // Determina di chi è il prossimo turno (ordine circolare/antiorario)
+  
   const playerIds = Object.keys(roomData.players);
   const currentIndex = playerIds.indexOf(playerId);
   const nextTurnIndex = playerIds[(currentIndex + 1) % playerIds.length];
 
-  // Prepara l'aggiornamento per Firebase
   const updates = {
     [`rooms/${roomId}/players/${playerId}/hand`]: updatedHand,
     [`rooms/${roomId}/tableCards`]: newTableCards,
   };
 
-  // Se il giro non è finito (meno di 4 carte a terra), passa il turno
   if (newTableCards.length < 4) {
     updates[`rooms/${roomId}/turnIndex`] = nextTurnIndex;
   } else {
-    // Se le carte sono 4, blocca temporaneamente i turni per risolvere la presa
     updates[`rooms/${roomId}/status`] = 'resolving_trick';
   }
 
-  // Applica le modifiche a Firebase
   await update(ref(db), updates);
 }
 
@@ -398,4 +411,14 @@ export async function resetGame(roomId, roomData) {
   updates[`rooms/${roomId}/status`] = 'waiting'; // Torna al pulsante "Diamo le carte!"
 
   await update(ref(db), updates);
+}
+
+// 12. Chiude la schermata di punizione e passa oltre
+export async function acknowledgePenalty(roomId, roomData) {
+  const isGameOver = roomData.penaltyInfo?.isGameOver;
+  
+  await update(ref(db), {
+    // Se era la quinta singa va al Game Over, altrimenti va al tabellone tra una mano e l'altra
+    [`rooms/${roomId}/status`]: isGameOver ? 'game_over' : 'between_hands'
+  });
 }
