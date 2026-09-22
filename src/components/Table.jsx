@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Card from './Card';
 
-export default function Table({ roomData, playerId }) {
+export default function Table({ roomData, playerId, isGameOver }) {
+    const [showLastTrick, setShowLastTrick] = useState(false);
+
     const playerIds = Object.keys(roomData.players || {});
     const myIndex = playerIds.indexOf(playerId);
     
@@ -23,7 +25,6 @@ export default function Table({ roomData, playerId }) {
     const leftP = getPlayerByPos('left');
     const rightP = getPlayerByPos('right');
 
-    // Disegna le singhe e le antenne
     const renderSingheQuadrante = (id, pos) => {
         if (!id) return null;
         const count = roomData.singhe?.[id] || 0;
@@ -34,7 +35,8 @@ export default function Table({ roomData, playerId }) {
         const isVerticalAxis = pos === 'left' || pos === 'right';
         const strokes = [];
         
-        for (let i = 0; i < Math.min(count, 10); i++) {
+        const visibleStrokes = Math.min(count, 5);
+        for (let i = 0; i < visibleStrokes; i++) {
         if (isVerticalAxis) {
             strokes.push(<div key={i} className={`w-[2px] h-3 ${colorClass} rotate-[8deg] rounded-full`}></div>);
         } else {
@@ -42,12 +44,43 @@ export default function Table({ roomData, playerId }) {
         }
         }
 
+        let comicalRotation = "";
+        let unrotateIcon = ""; 
+        if (pos === 'right') { comicalRotation = ""; unrotateIcon = ""; }
+        else if (pos === 'left') { comicalRotation = "rotate-180"; unrotateIcon = "rotate-180"; }
+        else if (pos === 'bottom') { comicalRotation = "rotate-90"; unrotateIcon = "-rotate-90"; }
+        else if (pos === 'top') { comicalRotation = "-rotate-90"; unrotateIcon = "rotate-90"; }
+
         const comical = count > 5 && (
-        <div key="comical" className="relative flex justify-center w-4 h-3 mt-0.5 opacity-90 drop-shadow-md">
-            <div className="absolute left-0 bottom-0 w-[1.5px] h-3 bg-red-600 -rotate-45"></div>
-            <div className="absolute right-0 bottom-0 w-[1.5px] h-3 bg-red-600 rotate-45"></div>
-            <div className="absolute -left-1 -top-1 w-1.5 h-1.5 bg-red-600 rounded-full"></div>
-            <div className="absolute -right-1 -top-1 w-1.5 h-1.5 bg-red-600 rounded-full"></div>
+        <div key="comical" className={`relative flex items-center justify-start w-12 h-12 opacity-100 drop-shadow-md ${comicalRotation}`}>
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-full">
+            
+            {count >= 6 && (
+                <div className="absolute left-0 top-1/2 w-4 h-[2.5px] bg-purple-500 -rotate-[35deg] origin-left">
+                <div className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 bg-yellow-400 rounded-full border-[0.5px] border-purple-800"></div>
+                </div>
+            )}
+            {count >= 7 && (
+                <div className="absolute left-0 top-1/2 w-4 h-[2.5px] bg-cyan-400 rotate-[35deg] origin-left">
+                <div className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 bg-pink-500 rounded-full border-[0.5px] border-cyan-800"></div>
+                </div>
+            )}
+            {count >= 8 && (
+                <div className="absolute left-3.5 top-1/2 w-4 h-[2.5px] bg-orange-500 -rotate-[35deg] origin-left">
+                <div className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 bg-green-400 rounded-full border-[0.5px] border-orange-800"></div>
+                </div>
+            )}
+            {count >= 9 && (
+                <div className="absolute left-3.5 top-1/2 w-4 h-[2.5px] bg-lime-400 rotate-[35deg] origin-left">
+                <div className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 bg-red-500 rounded-full border-[0.5px] border-lime-800"></div>
+                </div>
+            )}
+            {count >= 10 && (
+                <div className="absolute left-8 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 bg-red-600 rounded-full border-2 border-yellow-400 shadow-[0_0_8px_red] z-20">
+                <div className={`text-[12px] leading-none ${unrotateIcon}`}>🥁</div>
+                </div>
+            )}
+            </div>
         </div>
         );
 
@@ -68,7 +101,11 @@ export default function Table({ roomData, playerId }) {
     return (
         <>
         {/* FOGLIETTO DELLE SINGHE */}
-        <div className="absolute top-16 left-4 bg-[#fdfbf2] w-36 h-36 rounded shadow-lg border border-gray-400 transform -rotate-3 z-10">
+        <div className={`bg-[#fdfbf2] w-36 h-36 rounded border border-gray-400 transition-all duration-1000 ease-in-out ${
+            isGameOver 
+            ? 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[2.5] rotate-0 shadow-[0_0_50px_rgba(220,38,38,1)] z-[60]'
+            : 'absolute top-16 left-4 transform -rotate-3 shadow-lg z-10'
+        }`}>
             <div className="absolute top-1/2 left-3 right-3 h-[2px] bg-blue-900/30 -translate-y-1/2 rounded-full"></div>
             <div className="absolute left-1/2 top-3 bottom-3 w-[2px] bg-blue-900/30 -translate-x-1/2 rounded-full"></div>
             {renderSingheQuadrante(topP?.id, 'top')}
@@ -76,6 +113,37 @@ export default function Table({ roomData, playerId }) {
             {renderSingheQuadrante(leftP?.id, 'left')}
             {renderSingheQuadrante(rightP?.id, 'right')}
         </div>
+
+        {/* PULSANTE SBIRCIA ULTIMA PRESA */}
+        {roomData.lastTrick && !isGameOver && (
+            <button 
+            onClick={() => setShowLastTrick(true)}
+            className="absolute top-16 right-4 bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded shadow-lg border-2 border-yellow-700 z-10 transition-colors"
+            >
+            👀 Sbircia Ultima Presa
+            </button>
+        )}
+
+        {/* MODALE ULTIMA PRESA */}
+        {showLastTrick && (
+            <div className="fixed inset-0 bg-black/80 z-[70] flex flex-col items-center justify-center backdrop-blur-sm">
+            <h2 className="text-3xl text-yellow-400 font-bold mb-8">Ultima Presa</h2>
+            <div className="flex gap-4">
+                {roomData.lastTrick.map((play, idx) => (
+                <div key={idx} className="flex flex-col items-center">
+                    <span className="text-white mb-2 font-bold">{roomData.players[play.playerId]?.name}</span>
+                    <Card card={play.card} disabled={true} customClasses="w-24 h-36" />
+                </div>
+                ))}
+            </div>
+            <button 
+                onClick={() => setShowLastTrick(false)}
+                className="mt-12 bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-full text-xl shadow-lg transition-transform hover:scale-105"
+            >
+                Chiudi
+            </button>
+            </div>
+        )}
 
         {/* CENTRO DEL TAVOLO */}
         <div className="flex-1 relative flex items-center justify-center border-4 border-green-700 rounded-[100px] mx-8 my-4 bg-green-900 shadow-inner">
@@ -95,7 +163,7 @@ export default function Table({ roomData, playerId }) {
 
                 return (
                 <div key={idx} className={`absolute ${posClasses}`}>
-                    <Card card={play.card} disabled={true} customClasses="w-24 h-36" />
+                    <Card card={play.card} disabled={true} customClasses="w-24 h-36 shadow-2xl" />
                 </div>
                 );
             })}

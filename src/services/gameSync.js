@@ -145,12 +145,33 @@ export async function playCard(roomId, playerId, cardToPlay, roomData) {
   const tableCards = roomData.tableCards || [];
   const leadSuit = tableCards.length > 0 ? tableCards[0].card.suit : null;
 
-  // 🔴 NUOVA REGOLA: Se non risponde a seme, fine della mano e singa punitiva!
+  // 🔴 REGOLA PENALITÀ: Se non risponde a seme
   if (!isValidMove(cardToPlay, myHand, leadSuit)) {
     const playerName = roomData.players[playerId].name;
     const currentSinghe = roomData.singhe?.[playerId] || 0;
     const newSingheCount = currentSinghe + 1;
     
+    // Simula come sarà il tabellone delle singhe dopo questa penalità
+    const allSinghe = { ...(roomData.singhe || {}), [playerId]: newSingheCount };
+    
+    let count5 = 0;
+    let player10 = null;
+    let losers = [];
+
+    Object.keys(roomData.players).forEach(id => {
+      const s = allSinghe[id] || 0;
+      if (s >= 10) player10 = roomData.players[id].name;
+      if (s >= 5) {
+        count5++;
+        losers.push(roomData.players[id].name);
+      }
+    });
+
+    const isGameOver = !!player10 || count5 >= 2;
+    let gameOverReason = "";
+    if (player10) gameOverReason = "Sconfitta per 10 Singhe!";
+    else if (count5 >= 2) gameOverReason = "Due giocatori hanno raggiunto 5 Singhe!";
+
     const updates = {
       [`rooms/${roomId}/singhe/${playerId}`]: newSingheCount,
       [`rooms/${roomId}/lastLoser`]: playerId,
@@ -158,20 +179,18 @@ export async function playCard(roomId, playerId, cardToPlay, roomData) {
         name: playerName,
         wrongSuit: cardToPlay.suit,
         expectedSuit: leadSuit,
-        isGameOver: newSingheCount >= 5 // Controlla se questa singa lo elimina
+        isGameOver: isGameOver // Ora calcola correttamente la condizione!
       },
-      [`rooms/${roomId}/status`]: 'suit_penalty' // Passa alla nuova schermata teatrale
+      [`rooms/${roomId}/status`]: 'suit_penalty'
     };
 
-    // Se la singa punitiva è la quinta, segniamolo come perdente
-    if (newSingheCount >= 5) {
-      let losers = roomData.losers || [];
-      if (!losers.includes(playerName)) losers.push(playerName);
-      updates[`rooms/${roomId}/losers`] = losers;
+    if (isGameOver) {
+      updates[`rooms/${roomId}/losers`] = player10 ? [player10] : losers;
+      updates[`rooms/${roomId}/gameOverReason`] = gameOverReason;
     }
 
     await update(ref(db), updates);
-    return; // Ferma il gioco qui, la mano è saltata!
+    return; // Ferma il gioco, mano saltata!
   }
 
   // --- SE LA MOSSA È VALIDA, CONTINUA NORMALMENTE ---
@@ -317,7 +336,6 @@ export async function resolveTrick(roomId, roomData) {
 
   await update(ref(db), updates);
 }
-
 // 9. Calcola i risultati della mano e assegna le singhe
 export async function processHandOver(roomId, roomData) {
   if (roomData.status !== 'hand_over') return;
@@ -325,41 +343,34 @@ export async function processHandOver(roomId, roomData) {
   const playerIds = Object.keys(roomData.players);
   const singhe = { ...roomData.singhe };
   
-  // Trova il punteggio PIÙ ALTO
   let maxPoints = Math.max(...playerIds.map(id => roomData.players[id].points || 0));
   let lastLoser = null;
 
-  // CONTROLLO 1: Qualcuno ha preso tutti i 35 punti? (Cappotto)
+  // CONTROLLO 1: Cappotto
   const isCappotto = maxPoints === 35;
-  
-  // CONTROLLO 2: Qualcuno ha 0 prese valide? (Non è uscito franco)
+  // CONTROLLO 2: Zero Prese
   const zeroTricksPlayers = playerIds.filter(id => (roomData.players[id].validTricks || 0) === 0);
 
+  // FASE A: ASSEGNAZIONE SINGHE
   playerIds.forEach(id => {
     const p = roomData.players[id];
     let getsSinga = false;
 
     if (isCappotto) {
-      // REGOLA 1 (Suprema): CAPPOTTO. Chi NON ha fatto 35 punti prende la singa.
       if (p.points < 35) getsSinga = true;
-      
     } else if (zeroTricksPlayers.length > 0) {
-      // REGOLA 2: ZERO PRESE. Se qualcuno non è uscito franco, la singa va SOLO a lui.
-      // Chi ha fatto il punteggio massimo è miracolosamente salvo!
       if ((p.validTricks || 0) === 0) getsSinga = true;
-      
     } else {
-      // REGOLA 3 (Normale): Tutti sono usciti franchi. Prende la singa chi ha più punti.
       if (p.points === maxPoints) getsSinga = true;
     }
 
     if (getsSinga) {
       singhe[id] = (singhe[id] || 0) + 1;
-      lastLoser = id; // Il mazziere sarà l'ultimo che ha preso la singa
+      lastLoser = id; 
     }
   });
 
-  // --- LOGICA FINE PARTITA (2 a 5, oppure 1 a 10) ---
+  // FASE B: CONTROLLO FINE PARTITA RIGIDO
   let matchOver = false;
   let losers = [];
   let gameOverReason = "";
@@ -373,11 +384,15 @@ export async function processHandOver(roomId, roomData) {
     if (s >= 5) count5++;
   });
 
+  console.log(`🔍 [DEBUG] Giocatori con 5+ singhe: ${count5}`);
+
   if (player10) {
+    // Sconfitta per 10 singhe (Cappotto negativo)
     matchOver = true;
     losers = [player10]; 
     gameOverReason = "Sconfitta per 10 Singhe!";
   } else if (count5 >= 2) {
+    // Sconfitta standard: almeno 2 giocatori sono a 5 singhe
     matchOver = true;
     playerIds.forEach(id => {
       if ((singhe[id] || 0) >= 5) losers.push(roomData.players[id].name);
@@ -385,6 +400,7 @@ export async function processHandOver(roomId, roomData) {
     gameOverReason = "Due giocatori hanno raggiunto 5 Singhe!";
   }
 
+  // FASE C: AGGIORNAMENTO DATABASE
   const updates = {};
   updates[`rooms/${roomId}/singhe`] = singhe;
   updates[`rooms/${roomId}/lastLoser`] = lastLoser || roomData.turnIndex;
@@ -399,7 +415,6 @@ export async function processHandOver(roomId, roomData) {
   
   await update(ref(db), updates);
 }
-
 // 10. Avvia la mano successiva dopo aver mostrato i punteggi
 export async function startNextHand(roomId, roomData) {
   const deck = shuffleDeck(createDeck());
