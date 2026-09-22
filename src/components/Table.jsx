@@ -126,10 +126,11 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
 
     return (
         <>
+        {/* FOGLIETTO DELLE SINGHE */}
         <div className={`bg-[#fdfbf2] w-36 h-36 rounded border border-gray-400 transition-all duration-1000 ease-in-out ${
-            isGameOver 
+        isGameOver 
             ? 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[2.5] rotate-0 shadow-[0_0_50px_rgba(220,38,38,1)] z-[60]'
-            : 'absolute top-16 left-4 transform -rotate-3 shadow-lg z-10'
+            : 'absolute top-28 left-4 transform -rotate-3 shadow-lg z-10' // <-- MODIFICATO QUI: da top-16 a top-28
         }`}>
             <div className="absolute top-1/2 left-3 right-3 h-[2px] bg-blue-900/30 -translate-y-1/2 rounded-full"></div>
             <div className="absolute left-1/2 top-3 bottom-3 w-[2px] bg-blue-900/30 -translate-x-1/2 rounded-full"></div>

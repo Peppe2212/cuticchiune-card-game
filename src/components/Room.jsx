@@ -68,6 +68,7 @@ export default function Room() {
         // Pulizia quando si esce dalla pagina
         return () => unsubscribe();
     }, [roomId, navigate, playerId, isCreating]);
+
     useEffect(() => {
         const turnId = roomData?.turnIndex;
         const turnName = roomData?.players?.[turnId]?.name;
@@ -124,8 +125,16 @@ export default function Room() {
 
     if (!hasJoined) {
         return (
-        <div className="min-h-screen bg-green-900 flex items-center justify-center p-4">
-            <form onSubmit={handleJoin} className="bg-green-800 p-8 rounded-xl shadow-xl max-w-sm w-full text-center border-2 border-green-700">
+        <div className="min-h-screen bg-green-900 flex flex-col items-center justify-center p-4 relative">
+            {/* Tasto Indietro Assoluto */}
+            <button 
+            onClick={() => navigate('/')}
+            className="absolute top-6 left-6 bg-green-800 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg border border-green-600 shadow-lg flex items-center gap-2 transition-colors"
+            >
+            🔙 Torna alla Home
+            </button>
+
+            <form onSubmit={handleJoin} className="bg-green-800 p-8 rounded-xl shadow-xl max-w-sm w-full text-center border-2 border-green-700 mt-12">
             <h2 className="text-2xl text-white font-bold mb-6">Tavolo {roomId}</h2>
             <input type="text" placeholder="Il tuo nome" value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="w-full p-3 rounded mb-4 text-center text-lg focus:outline-none focus:ring-2 focus:ring-yellow-500" maxLength={12} required />
             <button type="submit" className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-4 rounded transition-colors">Siediti al Tavolo</button>
@@ -141,9 +150,26 @@ export default function Room() {
     if (['playing', 'resolving_trick', 'game_over'].includes(roomData?.status)) {
         return (
         <div className="min-h-screen bg-green-800 flex flex-col justify-between p-4 relative overflow-hidden">
-            <div className="flex justify-between text-white bg-green-900 p-2 rounded z-10">
-            <span>Stanza: {roomId}</span>
-            <span className="font-bold text-yellow-400">Turno di: {roomData.players[roomData.turnIndex]?.name}</span>
+            {/* INTESTAZIONE IN GIOCO */}
+                <div className="flex justify-between items-center text-white bg-green-900 p-3 rounded-lg z-10 shadow-md border border-green-700">
+                <button 
+                    onClick={() => {
+                    if (window.confirm("Vuoi davvero abbandonare la partita in corso?")) navigate('/');
+                    }}
+                    className="bg-red-800 hover:bg-red-700 text-white text-sm font-bold py-1.5 px-4 rounded transition-colors shadow"
+                >
+                    🚪 Abbandona
+                </button>
+                
+                <div className="flex-1 text-center">
+                    <span className="font-bold text-yellow-400 text-lg tracking-wide uppercase">
+                    Turno di: {roomData.players[roomData.turnIndex]?.name}
+                    </span>
+                </div>
+
+                <div className="bg-green-950 px-3 py-1.5 rounded font-mono text-sm text-green-300 border border-green-800">
+                    Stanza: {roomId}
+                </div>
             </div>
             
             <Table 
@@ -223,32 +249,79 @@ export default function Room() {
         );
     }
 
-
     return (
         <div className="min-h-screen bg-green-800 p-4 flex flex-col items-center">
-        <div className="w-full max-w-4xl flex justify-between items-center mb-8 bg-green-900 p-4 rounded-lg border border-green-700">
-            <h2 className="text-xl text-yellow-500 font-bold tracking-widest uppercase">Cuticchiune</h2>
-            <div className="text-white font-mono bg-green-950 px-4 py-1 rounded">Codice: {roomId}</div>
-        </div>
-        <div className="text-center mb-12">
-            <h3 className="text-white text-lg mb-4">Giocatori seduti ({players.length}/4)</h3>
-            <div className="flex flex-wrap justify-center gap-4">
-            {players.map((p, index) => <div key={index} className="bg-green-700 px-6 py-3 rounded-full text-white font-bold shadow-md border border-green-600 flex items-center gap-2">👤 {p.name}</div>)}
-            {[...Array(4 - players.length)].map((_, i) => <div key={`empty-${i}`} className="border-2 border-dashed border-green-600 px-6 py-3 rounded-full text-green-500 font-medium">Posto libero</div>)}
+            
+            {/* INTESTAZIONE LOBBY */}
+            <div className="w-full max-w-4xl flex justify-between items-center mb-8 bg-green-900 p-4 rounded-lg border border-green-700 shadow-xl">
+                <button 
+                    onClick={() => navigate('/')}
+                    className="bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-md flex items-center gap-2"
+                >
+                    🔙 Torna alla Home
+                </button>
+                
+                {/* Spazio per il logo futuro */}
+                <h2 className="text-3xl text-yellow-500 font-black tracking-widest uppercase drop-shadow-md hidden sm:block">
+                    Cuticchiune
+                </h2>
+                
+                <button 
+                    onClick={() => {
+                        navigator.clipboard.writeText(roomId);
+                        alert(`Codice ${roomId} copiato! Invia questo codice ai tuoi amici.`);
+                    }}
+                    className="bg-green-700 hover:bg-green-600 text-white font-mono py-2 px-6 rounded-lg transition-colors shadow-md flex items-center gap-2 border border-green-500"
+                    title="Copia codice stanza"
+                >
+                    📋 {roomId}
+                </button>
             </div>
-            {players.length > 0 && players.length < 4 && <button onClick={() => fillTableWithDummies(roomId)} className="mt-6 bg-gray-600 hover:bg-gray-500 text-white font-mono text-sm py-2 px-4 rounded border border-gray-400 opacity-70 hover:opacity-100">🛠 Riempimento rapido (Test)</button>}
-        </div>
+
+            {/* CORPO CENTRALE (Lista giocatori e bottoni) */}
+            <div className="text-center mb-12 mt-8">
+                <h3 className="text-white text-2xl mb-2 font-bold">Giocatori seduti ({players.length}/4)</h3>
+                
+                {players.length < 4 && (
+                    <p className="text-green-300 italic mb-8 animate-pulse">Aspettando altri giocatori...</p>
+                )}
+
+                <div className="flex flex-wrap justify-center gap-4">
+                    {players.map((p, index) => (
+                        <div key={index} className="bg-green-700 px-6 py-3 rounded-full text-white font-bold shadow-md border border-green-600 flex items-center gap-2">
+                            👤 {p.name}
+                        </div>
+                    ))}
+                    {[...Array(4 - players.length)].map((_, i) => (
+                        <div key={`empty-${i}`} className="border-2 border-dashed border-green-600 px-6 py-3 rounded-full text-green-500 font-medium">
+                            Posto libero
+                        </div>
+                    ))}
+                </div>
+                
+                {/* Modalità Single Player (Visibile solo all'host se mancano giocatori) */}
+                {players.length > 0 && players.length < 4 && players[0].id === playerId && (
+                    <button 
+                        onClick={() => fillTableWithDummies(roomId)} 
+                        className="mt-12 bg-blue-700 hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-full text-xl shadow-xl transition-transform hover:scale-105 flex items-center gap-3 mx-auto border-2 border-blue-400"
+                    >
+                        🤖 Gioca in Single Player (Aggiungi Bot)
+                    </button>
+                )}
+            </div>
+
+            {/* PULSANTE AVVIO PARTITA MULTIPLAYER (Appare solo quando il tavolo è pieno) */}
             {players.length === 4 && (!roomData || roomData.status === 'waiting') && (
-            <button 
-            onClick={(e) => {
-                e.currentTarget.disabled = true; // Blocca il pulsante all'istante
-                e.currentTarget.innerText = "Mescolando..."; // Cambia il testo visivamente
-                startGame(roomId, roomData);
-            }}
-            className="bg-red-600 hover:bg-red-500 text-white font-bold py-4 px-12 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105 animate-bounce disabled:opacity-50 disabled:animate-none disabled:cursor-not-allowed mt-4"
-            >
-            Diamo le carte!
-            </button>
+                <button 
+                    onClick={(e) => {
+                        e.currentTarget.disabled = true; 
+                        e.currentTarget.innerText = "Mescolando..."; 
+                        startGame(roomId, roomData);
+                    }}
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold py-4 px-12 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105 animate-bounce disabled:opacity-50 disabled:animate-none disabled:cursor-not-allowed mt-4"
+                >
+                    Diamo le carte!
+                </button>
             )}
         </div>
     );
