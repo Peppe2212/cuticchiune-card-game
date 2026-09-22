@@ -141,31 +141,28 @@ export default function Room() {
         }
     }, [roomData, roomId, playerId]);
 
-    // SBLOCCO AUDIO (Invisibile e silenzioso)
+    // SBLOCCO AUDIO INVISIBILE
     useEffect(() => {
         const unlockAudio = () => {
             const audio = bandaAudio.current;
             if (audio.paused) {
-                // 🔴 TRUCCO: Azzeriamo il volume prima di fare il finto avvio
-                audio.muted = true; 
+                // 🔴 Impostiamo il volume a 0 per non far sentire il glitch
+                audio.volume = 0; 
                 
                 audio.play().then(() => {
                     audio.pause();
                     audio.currentTime = 0;
-                    // 🔴 TRUCCO: Riattiviamo il volume ora che l'audio è in pausa e sbloccato
-                    audio.muted = false; 
+                    // 🔴 Riportiamo il volume al massimo una volta sbloccato
+                    audio.volume = 1; 
                     
-                    // Smontiamo i sensori
                     document.removeEventListener('click', unlockAudio);
                     document.removeEventListener('touchstart', unlockAudio);
                 }).catch(() => {
-                    // Se fallisce (es. regole troppo rigide), assicuriamoci di togliere il mute
-                    audio.muted = false;
+                    audio.volume = 1;
                 });
             }
         };
 
-        // Applichiamo i sensori
         document.addEventListener('click', unlockAudio);
         document.addEventListener('touchstart', unlockAudio);
 
@@ -175,19 +172,21 @@ export default function Room() {
         };
     }, []);
 
-    // GESTIONE DELLA BANDA (Con neutralizzazione)
+   // ESECUZIONE AUDIO
     useEffect(() => {
         const audio = bandaAudio.current;
         audio.loop = true;
 
         if (isGameOver && isTenSinghe) {
+            // 🔴 Per sicurezza assoluta, forziamo volume al massimo e togliamo eventuali mute
+            audio.volume = 1;
+            audio.muted = false;
+            
             const playPromise = audio.play();
             
-            // Se la promise esiste, gestiamo l'eventuale blocco del browser
             if (playPromise !== undefined) {
                 playPromise.catch(e => {
-                    console.warn("Autoplay bloccato al refresh. Neutralizzo l'audio.", e);
-                    // 🔴 Puliamo subito lo stato del player
+                    console.warn("Autoplay bloccato. Neutralizzo l'audio.", e);
                     audio.pause();
                     audio.currentTime = 0;
                 });
@@ -210,10 +209,6 @@ export default function Room() {
         if (success) setHasJoined(true);
         }
     };
-
-    // 🔴 SPOSTATO QUI: Tutte le variabili e l'hook useMemo DEVONO stare prima
-    // dei "return" di uscita anticipata, altrimenti React va in crash. (Nessuna frase è stata modificata)
-    
 
 
     // ==========================================
