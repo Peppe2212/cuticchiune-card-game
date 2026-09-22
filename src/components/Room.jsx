@@ -22,29 +22,6 @@ export default function Room() {
     const [roomData, setRoomData] = useState(null);
 
     const bandaAudio = useRef(new Audio('/the_king_30sec.m4a'));
-    useEffect(() => {
-        const unlockAudio = () => {
-            const audio = bandaAudio.current;
-            if (audio.paused) {
-                audio.play().then(() => {
-                    audio.pause();
-                    audio.currentTime = 0;
-                    // Permesso ottenuto! Smontiamo i sensori per non appesantire la memoria
-                    document.removeEventListener('click', unlockAudio);
-                    document.removeEventListener('touchstart', unlockAudio);
-                }).catch(() => {});
-            }
-        };
-
-        // Applichiamo i sensori invisibili su tutto lo schermo
-        document.addEventListener('click', unlockAudio);
-        document.addEventListener('touchstart', unlockAudio);
-
-        return () => {
-            document.removeEventListener('click', unlockAudio);
-            document.removeEventListener('touchstart', unlockAudio);
-        };
-    }, []);
 
     const [playerId] = useState(() => {
         const savedId = localStorage.getItem(`cuticchiune_${roomId}`);
@@ -164,29 +141,68 @@ export default function Room() {
         }
     }, [roomData, roomId, playerId]);
 
-    //banda
+    // SBLOCCO AUDIO (Invisibile e silenzioso)
+    useEffect(() => {
+        const unlockAudio = () => {
+            const audio = bandaAudio.current;
+            if (audio.paused) {
+                // 🔴 TRUCCO: Azzeriamo il volume prima di fare il finto avvio
+                audio.muted = true; 
+                
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    // 🔴 TRUCCO: Riattiviamo il volume ora che l'audio è in pausa e sbloccato
+                    audio.muted = false; 
+                    
+                    // Smontiamo i sensori
+                    document.removeEventListener('click', unlockAudio);
+                    document.removeEventListener('touchstart', unlockAudio);
+                }).catch(() => {
+                    // Se fallisce (es. regole troppo rigide), assicuriamoci di togliere il mute
+                    audio.muted = false;
+                });
+            }
+        };
+
+        // Applichiamo i sensori
+        document.addEventListener('click', unlockAudio);
+        document.addEventListener('touchstart', unlockAudio);
+
+        return () => {
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
+        };
+    }, []);
+
+    // GESTIONE DELLA BANDA (Con neutralizzazione)
     useEffect(() => {
         const audio = bandaAudio.current;
         audio.loop = true;
 
         if (isGameOver && isTenSinghe) {
-            // Se la partita finisce per 10 singhe, tenta di suonare
-            audio.play().catch(e => {
-                console.warn("Il browser ha bloccato l'audio in automatico. Premi F12 per i dettagli.", e);
-            });
+            const playPromise = audio.play();
+            
+            // Se la promise esiste, gestiamo l'eventuale blocco del browser
+            if (playPromise !== undefined) {
+                playPromise.catch(e => {
+                    console.warn("Autoplay bloccato al refresh. Neutralizzo l'audio.", e);
+                    // 🔴 Puliamo subito lo stato del player
+                    audio.pause();
+                    audio.currentTime = 0;
+                });
+            }
         } else {
-            // Se la partita riparte o si esce, ferma tutto
             audio.pause();
             audio.currentTime = 0;
         }
 
-        // Pulizia finale se si esce del tutto dalla pagina
         return () => {
             audio.pause();
             audio.currentTime = 0;
         };
     }, [isGameOver, isTenSinghe]);
-    
+
     const handleJoin = async (e) => {
         e.preventDefault();
         if (playerName.trim()) {
