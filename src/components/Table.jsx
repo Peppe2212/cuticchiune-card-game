@@ -180,33 +180,42 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
             </button>
             )}
 
-            {/* NOMI AVVERSARI (Rimpiccioliti e ravvicinati su mobile) */}
-            {topP && (
-                <div className="absolute top-2 sm:top-4 flex items-center gap-1 sm:gap-2 z-50">
-                    <span className="text-green-300 font-bold text-xs sm:text-lg">{topP.name} <span className="hidden sm:inline">(Di fronte)</span></span>
-                    {!topP.name.includes('Bot') && roomData.status === 'playing' && (
-                    <button onClick={() => onReplaceWithBot(topP.id, topP.name)} className="bg-red-700 hover:bg-red-600 text-white text-[8px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
-                    )}
+            {/* GIOCATORE IN ALTO */}
+                <div className="absolute top-2 sm:top-4 flex flex-col items-center gap-1 z-50">
+                    <span className="text-green-300 font-bold text-xs sm:text-lg">
+                        {topP.name} <span className="hidden sm:inline">(Di fronte)</span>
+                    </span>
+                    <div className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm whitespace-nowrap ${
+                        (topP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
+                    }`}>
+                        {(topP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
+                    </div>
                 </div>
-            )}
-                
-            {leftP && (
-                <div className="absolute left-2 sm:left-10 flex items-center gap-1 sm:gap-2 transform -rotate-90 origin-left z-50">
-                    <span className="text-green-300 font-bold text-xs sm:text-lg">{leftP.name}</span>
-                    {!leftP.name.includes('Bot') && roomData.status === 'playing' && (
-                    <button onClick={() => onReplaceWithBot(leftP.id, leftP.name)} className="bg-red-700 hover:bg-red-600 text-white text-[8px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
-                    )}
+
+            {/* GIOCATORE A SINISTRA */}
+                <div className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-50">
+                    <span className="text-green-300 font-bold text-xs sm:text-lg -rotate-90 sm:rotate-0 mb-3 sm:mb-0 whitespace-nowrap">
+                        {leftP.name}
+                    </span>
+                    <div className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm whitespace-nowrap -rotate-90 sm:rotate-0 ${
+                        (leftP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
+                    }`}>
+                        {(leftP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
+                    </div>
                 </div>
-            )}
-                
-            {rightP && (
-                <div className="absolute right-2 sm:right-10 flex items-center gap-1 sm:gap-2 transform rotate-90 origin-right z-50">
-                    <span className="text-green-300 font-bold text-xs sm:text-lg">{rightP.name}</span>
-                    {!rightP.name.includes('Bot') && roomData.status === 'playing' && (
-                    <button onClick={() => onReplaceWithBot(rightP.id, rightP.name)} className="bg-red-700 hover:bg-red-600 text-white text-[8px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
-                    )}
+
+            {/* GIOCATORE A DESTRA */}
+                <div className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-50">
+                    <span className="text-green-300 font-bold text-xs sm:text-lg rotate-90 sm:rotate-0 mb-3 sm:mb-0 whitespace-nowrap">
+                        {rightP.name}
+                    </span>
+                    <div className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm whitespace-nowrap rotate-90 sm:rotate-0 ${
+                        (rightP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
+                    }`}>
+                        {(rightP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
+                    </div>
                 </div>
-            )}
+            
 
             {/* MESSAGGIO CENTRALE DI RISOLUZIONE PRESA */}
             {roomData.status === 'resolving_trick' && winningPlay && (

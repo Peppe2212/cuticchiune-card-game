@@ -141,36 +141,6 @@ export default function Room() {
         }
     }, [roomData, roomId, playerId]);
 
-    // SBLOCCO AUDIO INVISIBILE
-    useEffect(() => {
-        const unlockAudio = () => {
-            const audio = bandaAudio.current;
-            if (audio.paused) {
-                // 🔴 Impostiamo il volume a 0 per non far sentire il glitch
-                audio.volume = 0; 
-                
-                audio.play().then(() => {
-                    audio.pause();
-                    audio.currentTime = 0;
-                    // 🔴 Riportiamo il volume al massimo una volta sbloccato
-                    audio.volume = 1; 
-                    
-                    document.removeEventListener('click', unlockAudio);
-                    document.removeEventListener('touchstart', unlockAudio);
-                }).catch(() => {
-                    audio.volume = 1;
-                });
-            }
-        };
-
-        document.addEventListener('click', unlockAudio);
-        document.addEventListener('touchstart', unlockAudio);
-
-        return () => {
-            document.removeEventListener('click', unlockAudio);
-            document.removeEventListener('touchstart', unlockAudio);
-        };
-    }, []);
 
    // ESECUZIONE AUDIO
     useEffect(() => {
