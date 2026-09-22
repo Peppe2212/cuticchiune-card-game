@@ -146,12 +146,16 @@ export default function Room() {
     if (!roomData) return <div className="min-h-screen flex items-center justify-center bg-green-900 text-white font-bold text-xl animate-pulse">Caricamento tavolo...</div>;
 
 
-   // IL GIOCO VERO E PROPRIO (Include la visualizzazione della Sconfitta come overlay)
-   // ==========================================
+    // ==========================================
     // IL GIOCO VERO E PROPRIO (Tutte le fasi mantengono il tavolo sullo sfondo)
     // ==========================================
+    
     const activeStates = ['playing', 'resolving_trick', 'suit_penalty', 'between_hands', 'game_over'];
     
+    // Calcoliamo l'Host: il primo giocatore umano della lista. Solo lui può cliccare i pulsanti di avanzamento.
+    const humanIds = Object.keys(roomData?.players || {}).filter(id => !roomData.players[id].name.includes('Bot'));
+    const isRoomHost = humanIds[0] === playerId;
+
     if (activeStates.includes(roomData?.status)) {
         const isGameOver = roomData.status === 'game_over';
 
@@ -160,24 +164,24 @@ export default function Room() {
                 
                 {/* INTESTAZIONE IN GIOCO */}
                 <div className="flex justify-between items-center text-white bg-green-900 p-3 rounded-lg z-10 shadow-md border border-green-700">
-                  <button 
-                    onClick={() => {
-                      if (window.confirm("Vuoi davvero abbandonare la partita in corso?")) navigate('/');
-                    }}
-                    className="bg-red-800 hover:bg-red-700 text-white text-sm font-bold py-1.5 px-4 rounded transition-colors shadow"
-                  >
-                    🚪 Abbandona
-                  </button>
-                  
-                  <div className="flex-1 text-center">
-                    <span className="font-bold text-yellow-400 text-lg tracking-wide uppercase">
-                      Turno di: {roomData.players[roomData.turnIndex]?.name}
-                    </span>
-                  </div>
+                    <button 
+                        onClick={() => {
+                        if (window.confirm("Vuoi davvero abbandonare la partita in corso?")) navigate('/');
+                        }}
+                        className="bg-red-800 hover:bg-red-700 text-white text-sm font-bold py-1.5 px-4 rounded transition-colors shadow"
+                    >
+                        🚪 Abbandona
+                    </button>
+                    
+                    <div className="flex-1 text-center">
+                        <span className="font-bold text-yellow-400 text-lg tracking-wide uppercase">
+                        Turno di: {roomData.players[roomData.turnIndex]?.name}
+                        </span>
+                    </div>
 
-                  <div className="bg-green-950 px-3 py-1.5 rounded font-mono text-sm text-green-300 border border-green-800">
-                    Stanza: {roomId}
-                  </div>
+                    <div className="bg-green-950 px-3 py-1.5 rounded font-mono text-sm text-green-300 border border-green-800">
+                        Stanza: {roomId}
+                    </div>
                 </div>
 
                 {/* IL TAVOLO RIMANE SEMPRE MONTATO */}
@@ -193,38 +197,44 @@ export default function Room() {
                     <Player roomData={roomData} playerId={playerId} roomId={roomId} />
                 )}
 
-                {/* OVERLAY: AZIONE ILLEGALE (Penalità) */}
+                {/* OVERLAY: AZIONE ILLEGALE (Penalità Compatta) */}
                 {roomData.status === 'suit_penalty' && (
                     <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                        <div className="bg-red-900 border-4 border-yellow-500 p-8 rounded-2xl max-w-xl shadow-[0_0_50px_rgba(220,38,38,0.8)] text-center">
-                            <h1 className="text-4xl mb-6 animate-bounce font-black text-white drop-shadow-lg">🚨 AZIONE ILLEGALE 🚨</h1>
-                            <p className="text-xl text-white mb-4 leading-relaxed"><strong className="text-yellow-400 text-3xl uppercase block mb-2">{roomData.penaltyInfo?.name}</strong> Non ha corrisposto!</p>
-                            <div className="bg-red-950 p-4 rounded-lg border border-red-800 my-6">
-                                <p className="text-xl text-gray-300 italic">A terra c'era <strong className="text-white">{roomData.penaltyInfo?.expectedSuit}</strong>,<br/>ma ha buttato <strong className="text-white">{roomData.penaltyInfo?.wrongSuit}</strong>.</p>
+                        <div className="bg-red-900 border-4 border-yellow-500 p-6 rounded-2xl max-w-md w-full shadow-[0_0_50px_rgba(220,38,38,0.8)] text-center">
+                            <h1 className="text-4xl mb-4 animate-bounce font-black text-white drop-shadow-lg">🚨 ILLEGALE 🚨</h1>
+                            <p className="text-lg text-white mb-2 leading-relaxed"><strong className="text-yellow-400 text-2xl uppercase block">{roomData.penaltyInfo?.name}</strong> Non ha corrisposto, forse si sente alla Ludoteca!</p>
+                            <div className="bg-red-950 p-3 rounded-lg border border-red-800 my-4">
+                                <p className="text-base text-gray-300 italic">A terra c'era <strong className="text-white">{roomData.penaltyInfo?.expectedSuit}</strong>,<br/>ma ha buttato <strong className="text-white">{roomData.penaltyInfo?.wrongSuit}</strong>.</p>
                             </div>
-                            <div className="text-5xl mb-8 font-black text-white bg-red-600 py-3 rounded-lg transform -rotate-2 shadow-xl border-2 border-red-400">✍️ +1 SINGA</div>
-                            <button onClick={() => acknowledgePenalty(roomId, roomData)} className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-900 font-bold py-4 px-8 rounded-xl text-2xl transition-transform hover:scale-105 shadow-xl">
-                                Ridai le carte
-                            </button>
+                            <div className="text-4xl mb-6 font-black text-white bg-red-600 py-2 rounded-lg transform -rotate-2 shadow-xl border-2 border-red-400">✍️ +1 SINGA</div>
+                            
+                            {/* CONTROLLO RACE CONDITION */}
+                            {isRoomHost ? (
+                                <button 
+                                    onClick={(e) => {
+                                        e.currentTarget.disabled = true;
+                                        e.currentTarget.innerText = "Applicando...";
+                                        acknowledgePenalty(roomId, roomData);
+                                    }} 
+                                    className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-900 font-bold py-3 px-8 rounded-xl text-xl transition-transform hover:scale-105 shadow-xl disabled:opacity-50"
+                                >
+                                    Continua
+                                </button>
+                            ) : (
+                                <div className="w-full bg-gray-800/80 text-gray-400 font-bold py-3 rounded-xl text-xl border border-gray-600">
+                                    ⏳ Attesa Host...
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
 
-                {/* OVERLAY: FINE MANO (Tabellone e Punti) */}
+                {/* OVERLAY: FINE MANO (Tabellone Compatto) */}
                 {roomData.status === 'between_hands' && (
                     <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                        {/* Stili per l'animazione della barra temporale */}
-                        <style>{`
-                            @keyframes shrinkBar {
-                                from { width: 100%; }
-                                to { width: 0%; }
-                            }
-                        `}</style>
-                        
-                        {/* Contenitore rimpicciolito: max-w-md invece di max-w-lg, padding p-6 */}
+                        <style>{`@keyframes shrinkBar { from { width: 100%; } to { width: 0%; } }`}</style>
                         <div className="bg-green-800 p-6 rounded-2xl border-4 border-yellow-600 max-w-md w-full text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
                             <h2 className="text-3xl text-yellow-500 font-black mb-6 drop-shadow-md">Mano Terminata!</h2>
-                            
                             <div className="space-y-3 mb-6 text-left">
                                 {players.map((p, idx) => (
                                     <div key={idx} className="bg-green-700 p-3 rounded-xl flex justify-between items-center text-white shadow-inner border border-green-600">
@@ -237,19 +247,29 @@ export default function Room() {
                                     </div>
                                 ))}
                             </div>
-
-                            {/* BARRA DI PROGRESSO TEMPORALE (Dura 10 secondi in sync col server) */}
+                            
+                            {/* Barra Temporale (10 sec) */}
                             <div className="w-full bg-green-950 rounded-full h-3 mb-4 border border-green-700 overflow-hidden relative shadow-inner">
                                 <div className="bg-yellow-500 h-full rounded-full animate-[shrinkBar_10s_linear_forwards]"></div>
                             </div>
 
-                            {/* Bottone per saltare l'attesa se l'host ha fretta */}
-                            <button 
-                                onClick={() => startNextHand(roomId, roomData)} 
-                                className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-950 font-black py-3 rounded-xl text-xl transition-transform hover:scale-105 shadow-xl"
-                            >
-                                Distribuisci Subito ⏭
-                            </button>
+                            {/* CONTROLLO RACE CONDITION */}
+                            {isRoomHost ? (
+                                <button 
+                                    onClick={(e) => {
+                                        e.currentTarget.disabled = true;
+                                        e.currentTarget.innerText = "Mescolando...";
+                                        startNextHand(roomId, roomData);
+                                    }} 
+                                    className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-950 font-black py-3 rounded-xl text-xl transition-transform hover:scale-105 shadow-xl disabled:opacity-50"
+                                >
+                                    Distribuisci Subito ⏭
+                                </button>
+                            ) : (
+                                <div className="w-full bg-gray-800/80 text-gray-400 font-bold py-3 rounded-xl text-xl border border-gray-600">
+                                    ⏳ Attesa Host...
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -269,12 +289,25 @@ export default function Room() {
                             </strong>
                         </div>
 
-                        <button 
-                            onClick={() => resetGame(roomId, roomData)} 
-                            className="pointer-events-auto bg-yellow-600 hover:bg-yellow-500 text-red-900 font-black py-5 px-12 rounded-full text-3xl shadow-[0_0_30px_rgba(202,138,4,0.5)] transition-transform transform hover:scale-110 mb-8 z-[70]"
-                        >
-                            🔄 Gioca la Rivincita!
-                        </button>
+                        {/* CONTROLLO RACE CONDITION */}
+                        <div className="pointer-events-auto z-[70] mb-8">
+                            {isRoomHost ? (
+                                <button 
+                                    onClick={(e) => {
+                                        e.currentTarget.disabled = true;
+                                        e.currentTarget.innerText = "Creando tavoli...";
+                                        resetGame(roomId, roomData);
+                                    }} 
+                                    className="bg-yellow-600 hover:bg-yellow-500 text-red-900 font-black py-5 px-12 rounded-full text-3xl shadow-[0_0_30px_rgba(202,138,4,0.5)] transition-transform transform hover:scale-110 disabled:opacity-50 disabled:transform-none"
+                                >
+                                    🔄 Gioca la Rivincita!
+                                </button>
+                            ) : (
+                                <div className="bg-gray-800/90 text-gray-400 font-bold py-5 px-12 rounded-full text-3xl border-2 border-gray-600">
+                                    ⏳ Attesa dell'Host...
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
