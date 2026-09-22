@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  joinOrCreateRoom, sitAtTable, subscribeToRoom, startGame, 
-  fillTableWithDummies, playBotTurn, resolveTrick, 
-  processHandOver, startNextHand, resetGame, acknowledgePenalty,
-  replacePlayerWithBot 
+    joinOrCreateRoom, sitAtTable, subscribeToRoom, startGame, 
+    fillTableWithDummies, playBotTurn, resolveTrick, 
+    processHandOver, startNextHand, resetGame, acknowledgePenalty,
+    replacePlayerWithBot 
 } from '../services/gameSync';
 
 import Player from './Player';
@@ -21,6 +21,31 @@ export default function Room() {
     const [hasJoined, setHasJoined] = useState(false);
     const [roomData, setRoomData] = useState(null);
 
+    const bandaAudio = useRef(new Audio('/the_king_30sec.m4a'));
+    useEffect(() => {
+        const unlockAudio = () => {
+            const audio = bandaAudio.current;
+            if (audio.paused) {
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    // Permesso ottenuto! Smontiamo i sensori per non appesantire la memoria
+                    document.removeEventListener('click', unlockAudio);
+                    document.removeEventListener('touchstart', unlockAudio);
+                }).catch(() => {});
+            }
+        };
+
+        // Applichiamo i sensori invisibili su tutto lo schermo
+        document.addEventListener('click', unlockAudio);
+        document.addEventListener('touchstart', unlockAudio);
+
+        return () => {
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
+        };
+    }, []);
+
     const [playerId] = useState(() => {
         const savedId = localStorage.getItem(`cuticchiune_${roomId}`);
         if (savedId) return savedId;
@@ -30,6 +55,41 @@ export default function Room() {
     });
 
     const players = roomData?.players ? Object.entries(roomData.players).map(([id, p]) => ({ id, ...p })) : [];
+
+    const isGameOver = roomData?.status === 'game_over';
+
+    const activeStates = ['playing', 'resolving_trick', 'suit_penalty', 'between_hands', 'game_over'];
+    
+    // GERARCHIA HOST (Per evitare doppi click)
+    const humanIds = Object.keys(roomData?.players || {}).filter(id => !roomData.players[id]?.name.includes('Bot'));
+    const originalHost = roomData?.hostId;
+    const activeHostId = humanIds.includes(originalHost) ? originalHost : humanIds[0];
+    const isRoomHost = activeHostId === playerId;
+
+    // VARIABILI PER GAME OVER E SFOTTI
+    const myName = roomData?.players?.[playerId]?.name;
+    const amILoser = roomData?.losers?.includes(myName);
+    const isTenSinghe = roomData?.gameOverReason?.includes('10');
+
+    // GENERATORE MESSAGGI GOLIARDICI (Tra una mano e l'altra)
+    const goliardicMessage = useMemo(() => {
+        if (roomData?.status !== 'between_hands') return "";
+        const mySinghe = roomData?.singhe?.[playerId] || 0;
+        const someoneHas9 = humanIds.some(id => roomData?.singhe?.[id] === 9);
+        
+        if (someoneHas9) return "🎺 ATTENZIONE: ARRIVA LA BANDA! 🥁";
+        if (mySinghe === 0) return "Ancora intonso. Ma la serata è lunga...";
+        if (mySinghe >= 7) return "Stai sudando freddo, ammettilo.";
+        
+        const randomMsg = [
+            "Salvo per un pelo!",
+            "Usa la testa, non i piedi!",
+            "Anche a sto giro hai rubato lo stipendio.",
+            "Maestro di schivata!",
+            "Sento odore di paura al tavolo..."
+        ];
+        return randomMsg[Math.floor(Math.random() * randomMsg.length)];
+    }, [roomData?.status, roomData?.singhe, playerId, humanIds]);
 
     // ==========================================
     // MOTORI LOGICI E RICONNESSIONE AUTOMATICA
@@ -106,22 +166,26 @@ export default function Room() {
 
     //banda
     useEffect(() => {
-        let audio = null;
+        const audio = bandaAudio.current;
+        audio.loop = true;
 
-        if (roomData?.status === 'game_over' && roomData?.gameOverReason?.includes('10')) {
-            audio = new Audio('/the_king_30sec.m4a');
-            audio.loop = true; // La banda continua a suonare in loop!
-            audio.play().catch(e => console.log("Il browser richiede un'interazione prima di riprodurre l'audio.", e));
+        if (isGameOver && isTenSinghe) {
+            // Se la partita finisce per 10 singhe, tenta di suonare
+            audio.play().catch(e => {
+                console.warn("Il browser ha bloccato l'audio in automatico. Premi F12 per i dettagli.", e);
+            });
+        } else {
+            // Se la partita riparte o si esce, ferma tutto
+            audio.pause();
+            audio.currentTime = 0;
         }
 
-        // Funzione di pulizia: scatta non appena lo stato cambia (es. resetGame o navigate)
+        // Pulizia finale se si esce del tutto dalla pagina
         return () => {
-            if (audio) {
-                audio.pause();
-                audio.currentTime = 0; // Riporta la traccia all'inizio
-            }
+            audio.pause();
+            audio.currentTime = 0;
         };
-    }, [roomData?.status, roomData?.gameOverReason]);
+    }, [isGameOver, isTenSinghe]);
     
     const handleJoin = async (e) => {
         e.preventDefault();
@@ -133,39 +197,7 @@ export default function Room() {
 
     // 🔴 SPOSTATO QUI: Tutte le variabili e l'hook useMemo DEVONO stare prima
     // dei "return" di uscita anticipata, altrimenti React va in crash. (Nessuna frase è stata modificata)
-    const activeStates = ['playing', 'resolving_trick', 'suit_penalty', 'between_hands', 'game_over'];
     
-    // GERARCHIA HOST (Per evitare doppi click)
-    const humanIds = Object.keys(roomData?.players || {}).filter(id => !roomData.players[id]?.name.includes('Bot'));
-    const originalHost = roomData?.hostId;
-    const activeHostId = humanIds.includes(originalHost) ? originalHost : humanIds[0];
-    const isRoomHost = activeHostId === playerId;
-
-    // VARIABILI PER GAME OVER E SFOTTI
-    const myName = roomData?.players?.[playerId]?.name;
-    const isGameOver = roomData?.status === 'game_over';
-    const amILoser = roomData?.losers?.includes(myName);
-    const isTenSinghe = roomData?.gameOverReason?.includes('10');
-
-    // GENERATORE MESSAGGI GOLIARDICI (Tra una mano e l'altra)
-    const goliardicMessage = useMemo(() => {
-        if (roomData?.status !== 'between_hands') return "";
-        const mySinghe = roomData?.singhe?.[playerId] || 0;
-        const someoneHas9 = humanIds.some(id => roomData?.singhe?.[id] === 9);
-        
-        if (someoneHas9) return "🎺 ATTENZIONE: ARRIVA LA BANDA! 🥁";
-        if (mySinghe === 0) return "Ancora intonso. Ma la serata è lunga...";
-        if (mySinghe >= 7) return "Stai sudando freddo, ammettilo.";
-        
-        const randomMsg = [
-            "Salvo per un pelo!",
-            "Usa la testa, non i piedi!",
-            "Anche a sto giro hai rubato lo stipendio.",
-            "Maestro di schivata!",
-            "Sento odore di paura al tavolo..."
-        ];
-        return randomMsg[Math.floor(Math.random() * randomMsg.length)];
-    }, [roomData?.status, roomData?.singhe, playerId, humanIds]);
 
 
     // ==========================================
