@@ -319,7 +319,6 @@ export async function resolveTrick(roomId, roomData) {
 }
 
 // 9. Calcola i risultati della mano e assegna le singhe
-// 9. Calcola i risultati della mano e assegna le singhe
 export async function processHandOver(roomId, roomData) {
   if (roomData.status !== 'hand_over') return;
 
@@ -330,21 +329,28 @@ export async function processHandOver(roomId, roomData) {
   let maxPoints = Math.max(...playerIds.map(id => roomData.players[id].points || 0));
   let lastLoser = null;
 
-  // CONTROLLO CAPPOTTO: Qualcuno ha preso tutti i 35 punti?
+  // CONTROLLO 1: Qualcuno ha preso tutti i 35 punti? (Cappotto)
   const isCappotto = maxPoints === 35;
+  
+  // CONTROLLO 2: Qualcuno ha 0 prese valide? (Non è uscito franco)
+  const zeroTricksPlayers = playerIds.filter(id => (roomData.players[id].validTricks || 0) === 0);
 
   playerIds.forEach(id => {
     const p = roomData.players[id];
     let getsSinga = false;
 
     if (isCappotto) {
-      // REGOLA CAPPOTTO: Chi NON ha fatto 35 prende la singa!
+      // REGOLA 1 (Suprema): CAPPOTTO. Chi NON ha fatto 35 punti prende la singa.
       if (p.points < 35) getsSinga = true;
+      
+    } else if (zeroTricksPlayers.length > 0) {
+      // REGOLA 2: ZERO PRESE. Se qualcuno non è uscito franco, la singa va SOLO a lui.
+      // Chi ha fatto il punteggio massimo è miracolosamente salvo!
+      if ((p.validTricks || 0) === 0) getsSinga = true;
+      
     } else {
-      // REGOLA NORMALE: Prende la singa chi ha il punteggio più alto OPPURE chi ha 0 prese
-      if (p.points === maxPoints || (p.validTricks || 0) === 0) {
-        getsSinga = true;
-      }
+      // REGOLA 3 (Normale): Tutti sono usciti franchi. Prende la singa chi ha più punti.
+      if (p.points === maxPoints) getsSinga = true;
     }
 
     if (getsSinga) {
