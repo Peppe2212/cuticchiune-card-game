@@ -426,8 +426,12 @@ export async function startNextHand(roomId, roomData) {
   const playerIds = Object.keys(roomData.players);
   const hands = dealCards(deck, playerIds);
   
-  // Il primo a giocare è l'ultimo ad aver preso la singa
-  const startingPlayerId = roomData.lastLoser || playerIds[0];
+  // 1. Identifica chi ha preso l'ultima singa (il mazziere)
+  const dealerId = roomData.lastLoser || playerIds[0];
+  const dealerIndex = playerIds.indexOf(dealerId);
+  
+  // 2. Il primo a giocare è il giocatore immediatamente successivo
+  const startingPlayerId = playerIds[(dealerIndex + 1) % playerIds.length];
 
   const updatedPlayers = { ...roomData.players };
   playerIds.forEach(id => {
@@ -441,7 +445,7 @@ export async function startNextHand(roomId, roomData) {
     players: updatedPlayers,
     turnIndex: startingPlayerId, 
     tableCards: [],
-    lastTrick: null // 🔴 ECCO LA MODIFICA: Cancella la memoria della presa precedente!
+    lastTrick: null
   };
 
   await update(ref(db, `rooms/${roomId}`), updates);
