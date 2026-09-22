@@ -180,41 +180,41 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
             </button>
             )}
 
-            {/* GIOCATORE IN ALTO */}
-                <div className="absolute top-2 sm:top-4 flex flex-col items-center gap-1 z-50">
-                    <span className="text-green-300 font-bold text-xs sm:text-lg">
-                        {topP.name} <span className="hidden sm:inline">(Di fronte)</span>
-                    </span>
-                    <div className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm whitespace-nowrap ${
-                        (topP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
-                    }`}>
-                        {(topP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
-                    </div>
+            {/* GIOCATORE IN ALTO (Centrato) */}
+            <div className="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 sm:gap-1 z-50">
+                <span className="text-green-300 font-bold text-[11px] sm:text-lg truncate max-w-[120px] sm:max-w-none text-center drop-shadow-md">
+                    {topP.name} <span className="hidden sm:inline">(Di fronte)</span>
+                </span>
+                <div className={`text-[9px] sm:text-xs font-bold px-1.5 py-0.5 rounded-full border shadow-sm whitespace-nowrap ${
+                    (topP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
+                }`}>
+                    {(topP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
                 </div>
+            </div>
 
-            {/* GIOCATORE A SINISTRA */}
-                <div className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-50">
-                    <span className="text-green-300 font-bold text-xs sm:text-lg -rotate-90 sm:rotate-0 mb-3 sm:mb-0 whitespace-nowrap">
-                        {leftP.name}
-                    </span>
-                    <div className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm whitespace-nowrap -rotate-90 sm:rotate-0 ${
-                        (leftP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
-                    }`}>
-                        {(leftP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
-                    </div>
+            {/* GIOCATORE A SINISTRA (Ancorato al bordo sinistro) */}
+            <div className="absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 flex flex-col items-start gap-0.5 sm:gap-1 z-50 max-w-[75px] sm:max-w-[120px]">
+                <span className="text-green-300 font-bold text-[11px] sm:text-lg truncate w-full text-left drop-shadow-md">
+                    {leftP.name}
+                </span>
+                <div className={`text-[9px] sm:text-xs font-bold px-1.5 py-0.5 rounded-full border shadow-sm whitespace-nowrap ${
+                    (leftP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
+                }`}>
+                    {(leftP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
                 </div>
+            </div>
 
-            {/* GIOCATORE A DESTRA */}
-                <div className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-50">
-                    <span className="text-green-300 font-bold text-xs sm:text-lg rotate-90 sm:rotate-0 mb-3 sm:mb-0 whitespace-nowrap">
-                        {rightP.name}
-                    </span>
-                    <div className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm whitespace-nowrap rotate-90 sm:rotate-0 ${
-                        (rightP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
-                    }`}>
-                        {(rightP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
-                    </div>
+            {/* GIOCATORE A DESTRA (Ancorato al bordo destro) */}
+            <div className="absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 flex flex-col items-end gap-0.5 sm:gap-1 z-50 max-w-[75px] sm:max-w-[120px]">
+                <span className="text-green-300 font-bold text-[11px] sm:text-lg truncate w-full text-right drop-shadow-md">
+                    {rightP.name}
+                </span>
+                <div className={`text-[9px] sm:text-xs font-bold px-1.5 py-0.5 rounded-full border shadow-sm whitespace-nowrap ${
+                    (rightP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
+                }`}>
+                    {(rightP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
                 </div>
+            </div>
             
 
             {/* MESSAGGIO CENTRALE DI RISOLUZIONE PRESA */}

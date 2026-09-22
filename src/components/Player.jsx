@@ -58,9 +58,18 @@ export default function Player({ roomData, playerId, roomId }) {
                         {isMyTurn && !isProcessing && <span className="bg-yellow-500 text-red-900 text-[9px] sm:text-sm px-1.5 py-0.5 rounded-full font-bold animate-pulse">IL TUO TURNO</span>}
                         {isProcessing && <span className="bg-gray-500 text-white text-[9px] sm:text-sm px-1.5 py-0.5 rounded-full font-bold animate-pulse">ATTESA...</span>}
                     </h3>
-                    <p className="text-yellow-400 font-mono text-xs sm:text-lg mt-0.5 tracking-wider">
-                        Punti: <strong className="text-base sm:text-2xl">{myData.points || 0}</strong> pt
-                    </p>
+                    
+                    {/* Contenitore Punti + Etichetta Salvezza affiancati */}
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-yellow-400 font-mono text-xs sm:text-lg tracking-wider">
+                            Punti: <strong className="text-base sm:text-2xl">{myData.points || 0}</strong> pt
+                        </p>
+                        <div className={`text-[9px] sm:text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm whitespace-nowrap ${
+                            (myData.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
+                        }`}>
+                            {(myData.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
+                        </div>
+                    </div>
                 </div>
                 
                 {/* Blocco Destro: Pulsante Ordina (Compatto, senza w-full e con whitespace-nowrap) */}
