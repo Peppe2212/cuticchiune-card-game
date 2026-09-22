@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   joinOrCreateRoom, sitAtTable, subscribeToRoom, startGame, 
@@ -30,7 +30,6 @@ export default function Room() {
     });
 
     const players = roomData?.players ? Object.entries(roomData.players).map(([id, p]) => ({ id, ...p })) : [];
-    const isGameOver = roomData?.status === 'game_over';
 
     // ==========================================
     // MOTORI LOGICI E RICONNESSIONE AUTOMATICA
@@ -105,6 +104,25 @@ export default function Room() {
         }
     }, [roomData, roomId, playerId]);
 
+    //banda
+    useEffect(() => {
+        let audio = null;
+
+        if (roomData?.status === 'game_over' && roomData?.gameOverReason?.includes('10')) {
+            audio = new Audio('/the_king_30sec.m4a');
+            audio.loop = true; // La banda continua a suonare in loop!
+            audio.play().catch(e => console.log("Il browser richiede un'interazione prima di riprodurre l'audio.", e));
+        }
+
+        // Funzione di pulizia: scatta non appena lo stato cambia (es. resetGame o navigate)
+        return () => {
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0; // Riporta la traccia all'inizio
+            }
+        };
+    }, [roomData?.status, roomData?.gameOverReason]);
+    
     const handleJoin = async (e) => {
         e.preventDefault();
         if (playerName.trim()) {
@@ -112,6 +130,43 @@ export default function Room() {
         if (success) setHasJoined(true);
         }
     };
+
+    // 🔴 SPOSTATO QUI: Tutte le variabili e l'hook useMemo DEVONO stare prima
+    // dei "return" di uscita anticipata, altrimenti React va in crash. (Nessuna frase è stata modificata)
+    const activeStates = ['playing', 'resolving_trick', 'suit_penalty', 'between_hands', 'game_over'];
+    
+    // GERARCHIA HOST (Per evitare doppi click)
+    const humanIds = Object.keys(roomData?.players || {}).filter(id => !roomData.players[id]?.name.includes('Bot'));
+    const originalHost = roomData?.hostId;
+    const activeHostId = humanIds.includes(originalHost) ? originalHost : humanIds[0];
+    const isRoomHost = activeHostId === playerId;
+
+    // VARIABILI PER GAME OVER E SFOTTI
+    const myName = roomData?.players?.[playerId]?.name;
+    const isGameOver = roomData?.status === 'game_over';
+    const amILoser = roomData?.losers?.includes(myName);
+    const isTenSinghe = roomData?.gameOverReason?.includes('10');
+
+    // GENERATORE MESSAGGI GOLIARDICI (Tra una mano e l'altra)
+    const goliardicMessage = useMemo(() => {
+        if (roomData?.status !== 'between_hands') return "";
+        const mySinghe = roomData?.singhe?.[playerId] || 0;
+        const someoneHas9 = humanIds.some(id => roomData?.singhe?.[id] === 9);
+        
+        if (someoneHas9) return "🎺 ATTENZIONE: ARRIVA LA BANDA! 🥁";
+        if (mySinghe === 0) return "Ancora intonso. Ma la serata è lunga...";
+        if (mySinghe >= 7) return "Stai sudando freddo, ammettilo.";
+        
+        const randomMsg = [
+            "Salvo per un pelo!",
+            "Usa la testa, non i piedi!",
+            "Anche a sto giro hai rubato lo stipendio.",
+            "Maestro di schivata!",
+            "Sento odore di paura al tavolo..."
+        ];
+        return randomMsg[Math.floor(Math.random() * randomMsg.length)];
+    }, [roomData?.status, roomData?.singhe, playerId, humanIds]);
+
 
     // ==========================================
     // RENDER DELLE SCHERMATE E BLOCCO INTRUSI
@@ -149,15 +204,8 @@ export default function Room() {
     // ==========================================
     // IL GIOCO VERO E PROPRIO (Tutte le fasi mantengono il tavolo sullo sfondo)
     // ==========================================
-    
-    const activeStates = ['playing', 'resolving_trick', 'suit_penalty', 'between_hands', 'game_over'];
-    
-    // Calcoliamo l'Host: il primo giocatore umano della lista. Solo lui può cliccare i pulsanti di avanzamento.
-    const humanIds = Object.keys(roomData?.players || {}).filter(id => !roomData.players[id].name.includes('Bot'));
-    const isRoomHost = humanIds[0] === playerId;
 
     if (activeStates.includes(roomData?.status)) {
-        const isGameOver = roomData.status === 'game_over';
 
         return (
             <div className="min-h-screen bg-green-800 flex flex-col justify-between p-4 relative overflow-hidden">
@@ -228,11 +276,15 @@ export default function Room() {
                         </div>
                     </div>
                 )}
-
-                {/* OVERLAY: FINE MANO (Tabellone Compatto) */}
-                {roomData.status === 'between_hands' && (
-                    <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            {roomData.status === 'between_hands' && (
+                    <div className="absolute inset-0 z-[80] flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                         <style>{`@keyframes shrinkBar { from { width: 100%; } to { width: 0%; } }`}</style>
+                        
+                        {/* Messaggio Goliardico Fluttuante */}
+                        <div className={`mb-6 px-6 py-3 rounded-full font-black text-xl shadow-2xl border-2 ${goliardicMessage.includes('BANDA') ? 'bg-red-600 text-white border-yellow-400 animate-bounce' : 'bg-black/80 text-yellow-400 border-yellow-600 animate-pulse'}`}>
+                            {goliardicMessage}
+                        </div>
+
                         <div className="bg-green-800 p-6 rounded-2xl border-4 border-yellow-600 max-w-md w-full text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
                             <h2 className="text-3xl text-yellow-500 font-black mb-6 drop-shadow-md">Mano Terminata!</h2>
                             <div className="space-y-3 mb-6 text-left">
@@ -248,17 +300,14 @@ export default function Room() {
                                 ))}
                             </div>
                             
-                            {/* Barra Temporale (10 sec) */}
                             <div className="w-full bg-green-950 rounded-full h-3 mb-4 border border-green-700 overflow-hidden relative shadow-inner">
                                 <div className="bg-yellow-500 h-full rounded-full animate-[shrinkBar_10s_linear_forwards]"></div>
                             </div>
 
-                            {/* CONTROLLO RACE CONDITION */}
                             {isRoomHost ? (
                                 <button 
                                     onClick={(e) => {
                                         e.currentTarget.disabled = true;
-                                        e.currentTarget.innerText = "Mescolando...";
                                         startNextHand(roomId, roomData);
                                     }} 
                                     className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-950 font-black py-3 rounded-xl text-xl transition-transform hover:scale-105 shadow-xl disabled:opacity-50"
@@ -274,44 +323,74 @@ export default function Room() {
                     </div>
                 )}
 
-                {/* OVERLAY: SCONFITTA DEFINITIVA */}
+                
+                {/* OVERLAY: SCONFITTA PERSONALIZZATA */}
                 {isGameOver && (
-                    <div className="absolute inset-0 z-[50] flex flex-col justify-between items-center py-12 pointer-events-none bg-black/70 backdrop-blur-sm">
+                    <div className="absolute inset-0 z-[50] flex flex-col justify-between items-center py-12 pointer-events-none bg-black/85 backdrop-blur-md">
+                        
+                        {/* Esito per l'utente (Resta in alto) */}
                         <div className="text-center drop-shadow-2xl mt-4 z-[70]">
-                            <h1 className="text-7xl text-white font-black mb-4 animate-bounce drop-shadow-[0_0_20px_rgba(220,38,38,0.8)]">FINE PARTITA</h1>
-                            <h2 className="text-3xl text-yellow-500 font-bold bg-black/50 px-6 py-2 rounded-full">{roomData.gameOverReason}</h2>
+                            <h1 className={`text-7xl font-black mb-4 animate-bounce ${amILoser ? 'text-red-500 drop-shadow-[0_0_20px_rgba(220,38,38,0.8)]' : 'text-green-400 drop-shadow-[0_0_20px_rgba(74,222,128,0.8)]'}`}>
+                                {amILoser ? 'HAI PERSO!' : 'HAI VINTO!'}
+                            </h1>
+                            <h2 className="text-2xl text-yellow-500 font-bold bg-black/50 px-6 py-2 rounded-full border border-yellow-700/50">
+                                {roomData.gameOverReason}
+                            </h2>
                         </div>
                         
-                        <div className="text-center bg-black/70 p-6 rounded-3xl border-4 border-red-600 mb-4 backdrop-blur-md z-[70]">
-                            <p className="text-2xl text-white mb-2 font-bold">Chi paga da bere:</p>
-                            <strong className="text-yellow-400 uppercase text-6xl drop-shadow-[0_0_15px_red]">
-                                {roomData.losers?.join(' e ')}
-                            </strong>
-                        </div>
-
-                        {/* CONTROLLO RACE CONDITION */}
-                        <div className="pointer-events-auto z-[70] mb-8">
-                            {isRoomHost ? (
-                                <button 
-                                    onClick={(e) => {
-                                        e.currentTarget.disabled = true;
-                                        e.currentTarget.innerText = "Creando tavoli...";
-                                        resetGame(roomId, roomData);
-                                    }} 
-                                    className="bg-yellow-600 hover:bg-yellow-500 text-red-900 font-black py-5 px-12 rounded-full text-3xl shadow-[0_0_30px_rgba(202,138,4,0.5)] transition-transform transform hover:scale-110 disabled:opacity-50 disabled:transform-none"
-                                >
-                                    🔄 Gioca la Rivincita!
-                                </button>
-                            ) : (
-                                <div className="bg-gray-800/90 text-gray-400 font-bold py-5 px-12 rounded-full text-3xl border-2 border-gray-600">
-                                    ⏳ Attesa dell'Host...
+                        {/* 🔴 MODIFICA: Contenitore raggruppato spinto in basso (mt-auto) */}
+                        <div className="mt-auto flex flex-col items-center gap-6 z-[70] mb-4">
+                            
+                            {/* Se il giocatore ha perso ed è arrivata la banda */}
+                            {amILoser && isTenSinghe && (
+                                <div className="text-center bg-red-900/90 p-4 sm:p-6 rounded-3xl border-4 border-red-500 backdrop-blur-md animate-pulse shadow-[0_0_30px_red]">
+                                    <p className="text-3xl sm:text-4xl text-yellow-400 font-black mb-2">🎺 ECCO LA BANDA! 🥁</p>
+                                    <p className="text-lg sm:text-xl text-white font-bold">Mano al portafoglio: offri da bere per tutti!</p>
                                 </div>
                             )}
+
+                            {/* Se il giocatore ha vinto, sfotte i perdenti */}
+                            {!amILoser && (
+                                <div className="text-center bg-green-900/90 p-4 sm:p-6 rounded-3xl border-4 border-green-500 backdrop-blur-md">
+                                    <p className="text-lg text-white mb-1 font-bold">Chi paga da bere stasera:</p>
+                                    <strong className="text-yellow-400 uppercase text-4xl drop-shadow-[0_0_15px_black]">
+                                        {roomData.losers?.join(' e ')}
+                                    </strong>
+                                </div>
+                            )}
+
+                            {/* Comandi finali: Rivincita o Fuga */}
+                            <div className="pointer-events-auto flex flex-col sm:flex-row gap-4 items-center">
+                                {isRoomHost ? (
+                                    <button 
+                                        onClick={(e) => {
+                                            e.currentTarget.disabled = true;
+                                            resetGame(roomId, roomData);
+                                        }} 
+                                        className="bg-yellow-600 hover:bg-yellow-500 text-red-900 font-black py-4 px-10 rounded-full text-2xl shadow-[0_0_30px_rgba(202,138,4,0.5)] transition-transform transform hover:scale-110 disabled:opacity-50"
+                                    >
+                                        🔄 Gioca la Rivincita!
+                                    </button>
+                                ) : (
+                                    <div className="bg-gray-800 text-gray-400 font-bold py-4 px-10 rounded-full text-2xl border-2 border-gray-600">
+                                        ⏳ Attesa dell'Host...
+                                    </div>
+                                )}
+
+                                <button 
+                                    onClick={() => navigate('/')} 
+                                    className="bg-red-800 hover:bg-red-700 text-white font-bold py-4 px-8 rounded-full text-xl shadow-lg border border-red-500 transition-colors"
+                                >
+                                    🚪 Abbandona Tavolo
+                                </button>
+                            </div>
                         </div>
+                        
                     </div>
                 )}
             </div>
         );
+        
     }
 
     return (
