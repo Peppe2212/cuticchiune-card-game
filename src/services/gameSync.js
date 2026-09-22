@@ -301,33 +301,30 @@ export async function resolveTrick(roomId, roomData) {
 
   const tableCards = roomData.tableCards;
   
-  // 1. Chi ha vinto la presa? (La carta più alta del seme di apertura)
+  // 1. Chi ha vinto la presa?
   const winnerId = determineTrickWinner(tableCards);
 
-  // 2. È l'ultima mano? (Controlliamo se le carte in mano sono finite)
-  // Prendiamo un giocatore a caso per vedere se ha 0 carte
+  // 2. È l'ultima mano?
   const anyPlayer = Object.values(roomData.players)[0];
   const isLastTrick = anyPlayer.hand === undefined || anyPlayer.hand.length === 0;
 
-  // 3. Calcola i punti totali di queste 4 carte (con bonus +3 se è l'ultima)
+  // 3. Calcola i punti
   const points = calculateTrickPoints(tableCards, isLastTrick);
 
   // 4. Aggiorna il bottino del vincitore
   const winnerData = roomData.players[winnerId];
   const newPoints = (winnerData.points || 0) + points;
-  
-  // Se la presa vale almeno 1 punto, aumenta il contatore delle prese valide per la "franchezza"
   const newValidTricks = (winnerData.validTricks || 0) + (points >= 1 ? 1 : 0);
 
-  // Prepara l'aggiornamento per Firebase
+  // 🔴 PREPARA L'AGGIORNAMENTO (Ora salva la presa!)
   const updates = {
-    [`rooms/${roomId}/tableCards`]: [], // Pulisce il tavolo
+    [`rooms/${roomId}/tableCards`]: null, // Pulisce il tavolo
+    [`rooms/${roomId}/lastTrick`]: tableCards, // <-- FOTOGRAFA L'ULTIMA PRESA QUI
     [`rooms/${roomId}/players/${winnerId}/points`]: newPoints,
     [`rooms/${roomId}/players/${winnerId}/validTricks`]: newValidTricks,
-    [`rooms/${roomId}/turnIndex`]: winnerId, // Il vincitore è il primo a giocare al turno dopo
+    [`rooms/${roomId}/turnIndex`]: winnerId, 
   };
 
-  // Se i giocatori non hanno più carte, la mano è finita e bisogna calcolare le singhe
   if (isLastTrick) {
     updates[`rooms/${roomId}/status`] = 'hand_over'; 
   } else {
@@ -336,6 +333,7 @@ export async function resolveTrick(roomId, roomData) {
 
   await update(ref(db), updates);
 }
+
 // 9. Calcola i risultati della mano e assegna le singhe
 export async function processHandOver(roomId, roomData) {
   if (roomData.status !== 'hand_over') return;
@@ -435,7 +433,8 @@ export async function startNextHand(roomId, roomData) {
     status: 'playing',
     players: updatedPlayers,
     turnIndex: startingPlayerId, 
-    tableCards: []
+    tableCards: [],
+    lastTrick: null // 🔴 ECCO LA MODIFICA: Cancella la memoria della presa precedente!
   };
 
   await update(ref(db, `rooms/${roomId}`), updates);
