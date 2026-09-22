@@ -99,7 +99,7 @@ export default function Room() {
         if (roomData?.status === 'between_hands') {
         const humanIds = Object.keys(roomData.players).filter(id => !roomData.players[id].name.includes('Bot'));
         if (humanIds[0] === playerId) {
-            const timer = setTimeout(() => startNextHand(roomId, roomData), 6000);
+            const timer = setTimeout(() => startNextHand(roomId, roomData), 12000);
             return () => clearTimeout(timer);
         }
         }
@@ -147,105 +147,137 @@ export default function Room() {
 
 
    // IL GIOCO VERO E PROPRIO (Include la visualizzazione della Sconfitta come overlay)
-    if (['playing', 'resolving_trick', 'game_over'].includes(roomData?.status)) {
+   // ==========================================
+    // IL GIOCO VERO E PROPRIO (Tutte le fasi mantengono il tavolo sullo sfondo)
+    // ==========================================
+    const activeStates = ['playing', 'resolving_trick', 'suit_penalty', 'between_hands', 'game_over'];
+    
+    if (activeStates.includes(roomData?.status)) {
+        const isGameOver = roomData.status === 'game_over';
+
         return (
-        <div className="min-h-screen bg-green-800 flex flex-col justify-between p-4 relative overflow-hidden">
-            {/* INTESTAZIONE IN GIOCO */}
+            <div className="min-h-screen bg-green-800 flex flex-col justify-between p-4 relative overflow-hidden">
+                
+                {/* INTESTAZIONE IN GIOCO */}
                 <div className="flex justify-between items-center text-white bg-green-900 p-3 rounded-lg z-10 shadow-md border border-green-700">
-                <button 
+                  <button 
                     onClick={() => {
-                    if (window.confirm("Vuoi davvero abbandonare la partita in corso?")) navigate('/');
+                      if (window.confirm("Vuoi davvero abbandonare la partita in corso?")) navigate('/');
                     }}
                     className="bg-red-800 hover:bg-red-700 text-white text-sm font-bold py-1.5 px-4 rounded transition-colors shadow"
-                >
+                  >
                     🚪 Abbandona
-                </button>
-                
-                <div className="flex-1 text-center">
+                  </button>
+                  
+                  <div className="flex-1 text-center">
                     <span className="font-bold text-yellow-400 text-lg tracking-wide uppercase">
-                    Turno di: {roomData.players[roomData.turnIndex]?.name}
+                      Turno di: {roomData.players[roomData.turnIndex]?.name}
                     </span>
-                </div>
+                  </div>
 
-                <div className="bg-green-950 px-3 py-1.5 rounded font-mono text-sm text-green-300 border border-green-800">
+                  <div className="bg-green-950 px-3 py-1.5 rounded font-mono text-sm text-green-300 border border-green-800">
                     Stanza: {roomId}
+                  </div>
                 </div>
-            </div>
-            
-            <Table 
-                roomData={roomData} 
-                playerId={playerId} 
-                isGameOver={isGameOver} 
-                onReplaceWithBot={(targetId, currentName) => replacePlayerWithBot(roomId, targetId, currentName)}
-            />
-            
-            {/* Nascondiamo le carte in mano se la partita è finita, lasciando la scena alla gogna */}
-            {!isGameOver && <Player roomData={roomData} playerId={playerId} roomId={roomId} />}
 
-            {/* OVERLAY SCONFITTA (Si posiziona sopra il tavolo, ma lascia un buco al centro per il foglietto) */}
-            {isGameOver && (
-                <div className="absolute inset-0 z-50 flex flex-col justify-between items-center py-12 pointer-events-none bg-black/70 backdrop-blur-sm">
-                    <div className="text-center drop-shadow-2xl mt-4">
-                        <h1 className="text-7xl text-white font-black mb-4 animate-bounce">FINE PARTITA</h1>
-                        <h2 className="text-3xl text-yellow-500 font-bold">{roomData.gameOverReason}</h2>
+                {/* IL TAVOLO RIMANE SEMPRE MONTATO */}
+                <Table 
+                    roomData={roomData} 
+                    playerId={playerId} 
+                    isGameOver={isGameOver} 
+                    onReplaceWithBot={(targetId, currentName) => replacePlayerWithBot(roomId, targetId, currentName)}
+                />
+                
+                {/* Nascondiamo la mano del giocatore solo a fine partita o tra una mano e l'altra */}
+                {!['between_hands', 'game_over'].includes(roomData.status) && (
+                    <Player roomData={roomData} playerId={playerId} roomId={roomId} />
+                )}
+
+                {/* OVERLAY: AZIONE ILLEGALE (Penalità) */}
+                {roomData.status === 'suit_penalty' && (
+                    <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                        <div className="bg-red-900 border-4 border-yellow-500 p-8 rounded-2xl max-w-xl shadow-[0_0_50px_rgba(220,38,38,0.8)] text-center">
+                            <h1 className="text-4xl mb-6 animate-bounce font-black text-white drop-shadow-lg">🚨 AZIONE ILLEGALE 🚨</h1>
+                            <p className="text-xl text-white mb-4 leading-relaxed"><strong className="text-yellow-400 text-3xl uppercase block mb-2">{roomData.penaltyInfo?.name}</strong> Non ha corrisposto!</p>
+                            <div className="bg-red-950 p-4 rounded-lg border border-red-800 my-6">
+                                <p className="text-xl text-gray-300 italic">A terra c'era <strong className="text-white">{roomData.penaltyInfo?.expectedSuit}</strong>,<br/>ma ha buttato <strong className="text-white">{roomData.penaltyInfo?.wrongSuit}</strong>.</p>
+                            </div>
+                            <div className="text-5xl mb-8 font-black text-white bg-red-600 py-3 rounded-lg transform -rotate-2 shadow-xl border-2 border-red-400">✍️ +1 SINGA</div>
+                            <button onClick={() => acknowledgePenalty(roomId, roomData)} className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-900 font-bold py-4 px-8 rounded-xl text-2xl transition-transform hover:scale-105 shadow-xl">
+                                Ridai le carte
+                            </button>
+                        </div>
                     </div>
-                    
-                    <div className="text-center bg-black/60 p-6 rounded-3xl border-2 border-red-600 mb-4 backdrop-blur-md">
-                        <p className="text-2xl text-white mb-2">Chi paga da bere:</p>
-                        <strong className="text-yellow-400 uppercase text-6xl drop-shadow-[0_0_10px_red]">
-                        {roomData.losers?.join(' e ')}
-                        </strong>
+                )}
+
+                {/* OVERLAY: FINE MANO (Tabellone e Punti) */}
+                {roomData.status === 'between_hands' && (
+                    <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                        {/* Stili per l'animazione della barra temporale */}
+                        <style>{`
+                            @keyframes shrinkBar {
+                                from { width: 100%; }
+                                to { width: 0%; }
+                            }
+                        `}</style>
+                        
+                        {/* Contenitore rimpicciolito: max-w-md invece di max-w-lg, padding p-6 */}
+                        <div className="bg-green-800 p-6 rounded-2xl border-4 border-yellow-600 max-w-md w-full text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+                            <h2 className="text-3xl text-yellow-500 font-black mb-6 drop-shadow-md">Mano Terminata!</h2>
+                            
+                            <div className="space-y-3 mb-6 text-left">
+                                {players.map((p, idx) => (
+                                    <div key={idx} className="bg-green-700 p-3 rounded-xl flex justify-between items-center text-white shadow-inner border border-green-600">
+                                        <span className="font-bold text-lg">{p.name}</span>
+                                        <div className="flex gap-3 items-center text-sm">
+                                            <span className="text-gray-300">Prese: {p.validTricks || 0}</span>
+                                            <span className="font-bold text-yellow-400 bg-green-900 px-2 py-1 rounded-lg border border-green-800">Pt: {p.points || 0}</span>
+                                            <span className="text-red-400 font-bold ml-1">Singhe: {roomData.singhe?.[p.id] || 0}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* BARRA DI PROGRESSO TEMPORALE (Dura 10 secondi in sync col server) */}
+                            <div className="w-full bg-green-950 rounded-full h-3 mb-4 border border-green-700 overflow-hidden relative shadow-inner">
+                                <div className="bg-yellow-500 h-full rounded-full animate-[shrinkBar_10s_linear_forwards]"></div>
+                            </div>
+
+                            {/* Bottone per saltare l'attesa se l'host ha fretta */}
+                            <button 
+                                onClick={() => startNextHand(roomId, roomData)} 
+                                className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-950 font-black py-3 rounded-xl text-xl transition-transform hover:scale-105 shadow-xl"
+                            >
+                                Distribuisci Subito ⏭
+                            </button>
+                        </div>
                     </div>
+                )}
 
-                    <button 
-                        onClick={() => resetGame(roomId, roomData)} 
-                        className="pointer-events-auto bg-yellow-600 hover:bg-yellow-500 text-red-900 font-bold py-5 px-12 rounded-full text-3xl shadow-xl transition-transform transform hover:scale-105 mb-8"
-                    >
-                        🔄 Gioca la Rivincita!
-                    </button>
-                </div>
-            )}
-        </div>
-        );
-    }
+                {/* OVERLAY: SCONFITTA DEFINITIVA */}
+                {isGameOver && (
+                    <div className="absolute inset-0 z-[50] flex flex-col justify-between items-center py-12 pointer-events-none bg-black/70 backdrop-blur-sm">
+                        <div className="text-center drop-shadow-2xl mt-4 z-[70]">
+                            <h1 className="text-7xl text-white font-black mb-4 animate-bounce drop-shadow-[0_0_20px_rgba(220,38,38,0.8)]">FINE PARTITA</h1>
+                            <h2 className="text-3xl text-yellow-500 font-bold bg-black/50 px-6 py-2 rounded-full">{roomData.gameOverReason}</h2>
+                        </div>
+                        
+                        <div className="text-center bg-black/70 p-6 rounded-3xl border-4 border-red-600 mb-4 backdrop-blur-md z-[70]">
+                            <p className="text-2xl text-white mb-2 font-bold">Chi paga da bere:</p>
+                            <strong className="text-yellow-400 uppercase text-6xl drop-shadow-[0_0_15px_red]">
+                                {roomData.losers?.join(' e ')}
+                            </strong>
+                        </div>
 
-    if (roomData?.status === 'suit_penalty') {
-        const { name, expectedSuit, wrongSuit } = roomData.penaltyInfo || {};
-        return (
-        <div className="min-h-screen bg-red-950 flex flex-col items-center justify-center p-6 text-center">
-            <div className="bg-red-900 border-4 border-yellow-500 p-8 rounded-2xl max-w-xl shadow-[0_0_50px_rgba(220,38,38,0.6)] z-50">
-            <h1 className="text-6xl mb-6 animate-bounce">🚨 AZIONE ILLEGALE 🚨</h1>
-            <p className="text-2xl text-white mb-4 leading-relaxed"><strong className="text-yellow-400 text-3xl uppercase block mb-2">{name}</strong> non ha risposto a seme!</p>
-            <div className="bg-red-950 p-4 rounded-lg border border-red-800 my-6">
-                <p className="text-xl text-gray-300 italic">A terra c'era <strong className="text-white">{expectedSuit}</strong>,<br/>ma ha buttato <strong className="text-white">{wrongSuit}</strong>.</p>
-            </div>
-            <div className="text-5xl mb-8 font-black text-white bg-red-600 py-3 rounded-lg transform -rotate-2">✍️ +1 SINGA</div>
-            <button onClick={() => acknowledgePenalty(roomId, roomData)} className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-900 font-bold py-4 px-8 rounded-xl text-xl transition-all shadow-xl">Vai al tabellone</button>
-            </div>
-        </div>
-        );
-    }
-
-    if (roomData?.status === 'between_hands') {
-        return (
-        <div className="min-h-screen bg-green-900 flex flex-col items-center justify-center p-4">
-            <div className="bg-green-800 p-8 rounded-2xl border-4 border-yellow-600 max-w-lg w-full text-center shadow-2xl">
-            <h2 className="text-3xl text-yellow-500 font-bold mb-6">Mano Terminata!</h2>
-            <div className="space-y-4 mb-8 text-left">
-                {players.map((p, idx) => (
-                <div key={idx} className="bg-green-700 p-4 rounded flex justify-between items-center text-white text-lg">
-                    <span className="font-bold">{p.name}</span>
-                    <div className="flex gap-6 items-center">
-                    <span className="text-gray-300 text-sm">Mani vinte: {p.validTricks || 0}</span>
-                    <span className="font-bold text-yellow-400">Punti: {p.points || 0}</span>
-                    <span className="text-red-400 font-bold ml-2">Singhe: {roomData.singhe?.[p.id] || 0}</span>
+                        <button 
+                            onClick={() => resetGame(roomId, roomData)} 
+                            className="pointer-events-auto bg-yellow-600 hover:bg-yellow-500 text-red-900 font-black py-5 px-12 rounded-full text-3xl shadow-[0_0_30px_rgba(202,138,4,0.5)] transition-transform transform hover:scale-110 mb-8 z-[70]"
+                        >
+                            🔄 Gioca la Rivincita!
+                        </button>
                     </div>
-                </div>
-                ))}
+                )}
             </div>
-            <button onClick={() => startNextHand(roomId, roomData)} className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-4 rounded-xl text-xl transition-all">Distribuisci Nuova Mano</button>
-            </div>
-        </div>
         );
     }
 
