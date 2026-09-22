@@ -192,29 +192,34 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
                 </div>
             </div>
 
-            {/* GIOCATORE A SINISTRA (Ancorato al bordo sinistro) */}
-            <div className="absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 flex flex-col items-start gap-0.5 sm:gap-1 z-50 max-w-[75px] sm:max-w-[120px]">
-                <span className="text-green-300 font-bold text-[11px] sm:text-lg truncate w-full text-left drop-shadow-md">
-                    {leftP.name}
-                </span>
-                <div className={`text-[9px] sm:text-xs font-bold px-1.5 py-0.5 rounded-full border shadow-sm whitespace-nowrap ${
-                    (leftP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
-                }`}>
-                    {(leftP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
+            {/* GIOCATORE A SINISTRA (Ancorato a un punto invisibile e ruotato in riga) */}
+                <div className="absolute left-3 sm:left-8 top-1/2 -translate-y-1/2 flex items-center justify-center w-0 h-0 z-50">
+                    {/* flex-row su mobile per creare una linea sottile, flex-col su schermi grandi */}
+                    <div className="-rotate-90 sm:rotate-0 flex flex-row sm:flex-col items-center gap-2 sm:gap-1">
+                        <span className="text-green-300 font-bold text-[11px] sm:text-lg whitespace-nowrap drop-shadow-md">
+                            {leftP.name}
+                        </span>
+                        <div className={`text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded-full border shadow-sm whitespace-nowrap ${
+                            (leftP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
+                        }`}>
+                            {(leftP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            {/* GIOCATORE A DESTRA (Ancorato al bordo destro) */}
-            <div className="absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 flex flex-col items-end gap-0.5 sm:gap-1 z-50 max-w-[75px] sm:max-w-[120px]">
-                <span className="text-green-300 font-bold text-[11px] sm:text-lg truncate w-full text-right drop-shadow-md">
-                    {rightP.name}
-                </span>
-                <div className={`text-[9px] sm:text-xs font-bold px-1.5 py-0.5 rounded-full border shadow-sm whitespace-nowrap ${
-                    (rightP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
-                }`}>
-                    {(rightP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
+                {/* GIOCATORE A DESTRA (Ancorato a un punto invisibile e ruotato in riga) */}
+                <div className="absolute right-3 sm:right-8 top-1/2 -translate-y-1/2 flex items-center justify-center w-0 h-0 z-50">
+                    <div className="rotate-90 sm:rotate-0 flex flex-row sm:flex-col items-center gap-2 sm:gap-1">
+                        <span className="text-green-300 font-bold text-[11px] sm:text-lg whitespace-nowrap drop-shadow-md">
+                            {rightP.name}
+                        </span>
+                        <div className={`text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded-full border shadow-sm whitespace-nowrap ${
+                            (rightP.validTricks || 0) > 0 ? 'bg-green-900/80 text-green-300 border-green-500' : 'bg-red-900/80 text-red-300 border-red-500'
+                        }`}>
+                            {(rightP.validTricks || 0) > 0 ? '✅ Salvo' : '⚠️ Zero Prese'}
+                        </div>
+                    </div>
                 </div>
-            </div>
             
 
             {/* MESSAGGIO CENTRALE DI RISOLUZIONE PRESA */}
