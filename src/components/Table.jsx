@@ -140,23 +140,22 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
             {renderSingheQuadrante(rightP?.id, 'right')}
         </div>
 
+        {/* WIDGET ULTIMA PRESA (Compatto e fluttuante) */}
         {showLastTrick && (
-            <div className="fixed inset-0 bg-black/80 z-[70] flex flex-col items-center justify-center backdrop-blur-sm">
-            <h2 className="text-3xl text-yellow-400 font-bold mb-8">Ultima Presa</h2>
-            <div className="flex gap-4">
-                {roomData.lastTrick.map((play, idx) => (
-                <div key={idx} className="flex flex-col items-center">
-                    <span className="text-white mb-2 font-bold">{roomData.players[play.playerId]?.name}</span>
-                    <Card card={play.card} disabled={true} customClasses="w-24 h-36" />
+            <div className="absolute top-20 right-8 bg-black/90 p-4 rounded-xl border-2 border-yellow-600 z-[70] shadow-2xl backdrop-blur-md animate-fade-in">
+                <div className="flex justify-between items-center mb-3">
+                    <h2 className="text-sm text-yellow-400 font-bold uppercase tracking-wider">Ultima Presa</h2>
+                    <button onClick={() => setShowLastTrick(false)} className="text-white hover:text-red-500 font-black text-xl leading-none">&times;</button>
                 </div>
-                ))}
-            </div>
-            <button 
-                onClick={() => setShowLastTrick(false)}
-                className="mt-12 bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-full text-xl shadow-lg transition-transform hover:scale-105"
-            >
-                Chiudi
-            </button>
+                <div className="flex gap-2">
+                    {roomData.lastTrick.map((play, idx) => (
+                    <div key={idx} className="flex flex-col items-center">
+                        <span className="text-gray-300 text-[10px] mb-1 font-bold">{roomData.players[play.playerId]?.name}</span>
+                        {/* Carte rimpicciolite per non disturbare la vista */}
+                        <Card card={play.card} disabled={true} customClasses="w-12 h-16" />
+                    </div>
+                    ))}
+                </div>
             </div>
         )}
 
