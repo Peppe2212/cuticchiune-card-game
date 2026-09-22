@@ -27,7 +27,7 @@ export default function Player({ roomData, playerId, roomId }) {
                 La tua mano ({myData.name}) {isMyTurn ? " - È IL TUO TURNO! ⬇️" : ""}
             </h3>
             <p className="text-yellow-400 font-mono text-lg mt-1 tracking-wider">
-                Bottino attuale: <strong className="text-2xl">{myData.points || 0}</strong> pt
+                Punteggio attuale: <strong className="text-2xl">{myData.points || 0}</strong> pt
             </p>
             </div>
             
