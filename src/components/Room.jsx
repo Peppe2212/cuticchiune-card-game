@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   joinOrCreateRoom, sitAtTable, subscribeToRoom, startGame, 
   fillTableWithDummies, playBotTurn, resolveTrick, 
@@ -11,7 +11,10 @@ import Table from './Table';
 
 export default function Room() {
     const { roomId } = useParams();
-    const navigate = useNavigate(); // Per il redirect alla Home
+    const navigate = useNavigate(); 
+    const location = useLocation();
+
+    const isCreating = location.state?.isCreating || false;
     
     const [playerName, setPlayerName] = useState('');
     const [hasJoined, setHasJoined] = useState(false);
@@ -28,21 +31,41 @@ export default function Room() {
     const players = roomData?.players ? Object.entries(roomData.players).map(([id, p]) => ({ id, ...p })) : [];
 
     // ==========================================
-    // MOTORI LOGICI E ROUTING DI SICUREZZA
+    // MOTORI LOGICI E RICONNESSIONE AUTOMATICA
     // ==========================================
 
     useEffect(() => {
-        // Se fallisce l'inizializzazione, torna alla Home
-        joinOrCreateRoom(roomId).catch(() => navigate('/')); 
-        
-        const unsubscribe = subscribeToRoom(roomId, (data) => {
-        // Se Firebase restituisce null (stanza cancellata o inesistente), torna alla Home
-        if (!data) navigate('/'); 
-        else setRoomData(data);
-        });
-        return () => unsubscribe();
-    }, [roomId, navigate]);
+        let unsubscribe = () => {}; // Funzione vuota di default
 
+        const initStanza = async () => {
+        try {
+            // 1. ASPETTA il verdetto: il database controllerà se la stanza esiste o se deve crearla
+            await joinOrCreateRoom(roomId, isCreating);
+
+            // 2. SOLO SE IL CONTROLLO PASSA, ci mettiamo in ascolto dei dati
+            unsubscribe = subscribeToRoom(roomId, (data) => {
+            if (!data) {
+                navigate('/?error=notfound'); 
+            } else {
+                setRoomData(data);
+                // Controllo se ero già seduto
+                if (data.players && data.players[playerId]) {
+                setHasJoined(true);
+                setPlayerName(data.players[playerId].name);
+                }
+            }
+            });
+        } catch (error) {
+            // 3. Se joinOrCreateRoom lancia un errore, rimbalza alla Home all'istante
+            navigate('/?error=notfound');
+        }
+        };
+
+        initStanza();
+
+        // Pulizia quando si esce dalla pagina
+        return () => unsubscribe();
+    }, [roomId, navigate, playerId, isCreating]);
     useEffect(() => {
         const turnId = roomData?.turnIndex;
         const turnName = roomData?.players?.[turnId]?.name;
@@ -88,8 +111,14 @@ export default function Room() {
     };
 
     // ==========================================
-    // RENDER DELLE SCHERMATE
+    // RENDER DELLE SCHERMATE E BLOCCO INTRUSI
     // ==========================================
+
+    // BLOCCO INTRUSI: Se non sono seduto e la partita è già iniziata, vengo cacciato!
+    if (!hasJoined && roomData && roomData.status !== 'waiting') {
+        navigate('/?error=started');
+        return null;
+    }
 
     if (!hasJoined) {
         return (
@@ -103,7 +132,8 @@ export default function Room() {
         );
     }
 
-    if (!roomData) return <div className="min-h-screen flex items-center justify-center bg-green-900 text-white">Caricamento tavolo...</div>;
+    if (!roomData) return <div className="min-h-screen flex items-center justify-center bg-green-900 text-white font-bold text-xl animate-pulse">Caricamento tavolo...</div>;
+
 
     if (roomData?.status === 'playing' || roomData?.status === 'resolving_trick') {
         return (

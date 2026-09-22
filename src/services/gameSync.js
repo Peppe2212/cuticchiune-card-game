@@ -12,15 +12,22 @@ const INITIAL_ROOM_STATE = {
   singhe: {}         // Il conteggio delle sconfitte
 };
 
-// 1. Entra nella stanza o la crea se non esiste
-export async function joinOrCreateRoom(roomId) {
+// Aggiunto il parametro isCreating (di default false)
+export async function joinOrCreateRoom(roomId, isCreating = false) {
   const roomRef = ref(db, `rooms/${roomId}`);
   const snapshot = await get(roomRef);
 
   if (!snapshot.exists()) {
-    await set(roomRef, INITIAL_ROOM_STATE);
+    // Se la stanza non c'è e NON abbiamo cliccato "Crea Nuovo Tavolo"...
+    if (!isCreating) {
+      throw new Error("Stanza inesistente"); // Lancia l'allarme per cacciare l'utente!
+    }
+    
+    // Altrimenti, se abbiamo cliccato "Crea", costruisci il tavolo
+    await set(roomRef, {
+      status: 'waiting'
+    });
   }
-  return true;
 }
 
 // 2. Aggiunge il giocatore al tavolo (se c'è posto)
