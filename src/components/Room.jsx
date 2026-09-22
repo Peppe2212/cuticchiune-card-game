@@ -3,7 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   joinOrCreateRoom, sitAtTable, subscribeToRoom, startGame, 
   fillTableWithDummies, playBotTurn, resolveTrick, 
-  processHandOver, startNextHand, resetGame, acknowledgePenalty 
+  processHandOver, startNextHand, resetGame, acknowledgePenalty,
+  replacePlayerWithBot 
 } from '../services/gameSync';
 
 import Player from './Player';
@@ -29,6 +30,7 @@ export default function Room() {
     });
 
     const players = roomData?.players ? Object.entries(roomData.players).map(([id, p]) => ({ id, ...p })) : [];
+    const isGameOver = roomData?.status === 'game_over';
 
     // ==========================================
     // MOTORI LOGICI E RICONNESSIONE AUTOMATICA
@@ -135,7 +137,8 @@ export default function Room() {
     if (!roomData) return <div className="min-h-screen flex items-center justify-center bg-green-900 text-white font-bold text-xl animate-pulse">Caricamento tavolo...</div>;
 
 
-    if (roomData?.status === 'playing' || roomData?.status === 'resolving_trick') {
+   // IL GIOCO VERO E PROPRIO (Include la visualizzazione della Sconfitta come overlay)
+    if (['playing', 'resolving_trick', 'game_over'].includes(roomData?.status)) {
         return (
         <div className="min-h-screen bg-green-800 flex flex-col justify-between p-4 relative overflow-hidden">
             <div className="flex justify-between text-white bg-green-900 p-2 rounded z-10">
@@ -143,8 +146,39 @@ export default function Room() {
             <span className="font-bold text-yellow-400">Turno di: {roomData.players[roomData.turnIndex]?.name}</span>
             </div>
             
-            <Table roomData={roomData} playerId={playerId} />
-            <Player roomData={roomData} playerId={playerId} roomId={roomId} />
+            <Table 
+                roomData={roomData} 
+                playerId={playerId} 
+                isGameOver={isGameOver} 
+                onReplaceWithBot={(targetId, currentName) => replacePlayerWithBot(roomId, targetId, currentName)}
+            />
+            
+            {/* Nascondiamo le carte in mano se la partita è finita, lasciando la scena alla gogna */}
+            {!isGameOver && <Player roomData={roomData} playerId={playerId} roomId={roomId} />}
+
+            {/* OVERLAY SCONFITTA (Si posiziona sopra il tavolo, ma lascia un buco al centro per il foglietto) */}
+            {isGameOver && (
+                <div className="absolute inset-0 z-50 flex flex-col justify-between items-center py-12 pointer-events-none bg-black/70 backdrop-blur-sm">
+                    <div className="text-center drop-shadow-2xl mt-4">
+                        <h1 className="text-7xl text-white font-black mb-4 animate-bounce">FINE PARTITA</h1>
+                        <h2 className="text-3xl text-yellow-500 font-bold">{roomData.gameOverReason}</h2>
+                    </div>
+                    
+                    <div className="text-center bg-black/60 p-6 rounded-3xl border-2 border-red-600 mb-4 backdrop-blur-md">
+                        <p className="text-2xl text-white mb-2">Chi paga da bere:</p>
+                        <strong className="text-yellow-400 uppercase text-6xl drop-shadow-[0_0_10px_red]">
+                        {roomData.losers?.join(' e ')}
+                        </strong>
+                    </div>
+
+                    <button 
+                        onClick={() => resetGame(roomId, roomData)} 
+                        className="pointer-events-auto bg-yellow-600 hover:bg-yellow-500 text-red-900 font-bold py-5 px-12 rounded-full text-3xl shadow-xl transition-transform transform hover:scale-105 mb-8"
+                    >
+                        🔄 Gioca la Rivincita!
+                    </button>
+                </div>
+            )}
         </div>
         );
     }
@@ -189,16 +223,6 @@ export default function Room() {
         );
     }
 
-    if (roomData?.status === 'game_over') {
-        return (
-        <div className="min-h-screen bg-red-900 flex flex-col items-center justify-center p-4 text-center">
-            <h1 className="text-6xl text-white font-bold mb-4 animate-bounce">FINE PARTITA</h1>
-            <h2 className="text-3xl text-yellow-500 mb-2 font-bold">{roomData.gameOverReason}</h2>
-            <p className="text-2xl text-white mb-12">Chi paga da bere: <strong className="text-yellow-400 uppercase text-4xl block mt-4">{roomData.losers?.join(' e ')}</strong></p>
-            <button onClick={() => resetGame(roomId, roomData)} className="bg-yellow-600 hover:bg-yellow-500 text-red-900 font-bold py-5 px-12 rounded-full text-3xl shadow-xl transition-transform transform hover:scale-105">🔄 Gioca la Rivincita!</button>
-        </div>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-green-800 p-4 flex flex-col items-center">

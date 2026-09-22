@@ -479,3 +479,14 @@ export async function acknowledgePenalty(roomId, roomData) {
     [`rooms/${roomId}/status`]: isGameOver ? 'game_over' : 'between_hands'
   });
 }
+
+// 13. Gestione Abbandoni: Trasforma un giocatore disconnesso in un Bot
+export async function replacePlayerWithBot(roomId, targetId, currentName) {
+  // Evita di aggiungere "Bot" se lo è già
+  if (currentName.includes('Bot')) return; 
+  
+  const updates = {
+    [`rooms/${roomId}/players/${targetId}/name`]: `Bot ${currentName}`
+  };
+  await update(ref(db), updates);
+}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Card from './Card';
 
-export default function Table({ roomData, playerId, isGameOver }) {
+export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot }) {
     const [showLastTrick, setShowLastTrick] = useState(false);
 
     const playerIds = Object.keys(roomData.players || {});
@@ -162,7 +162,7 @@ export default function Table({ roomData, playerId, isGameOver }) {
         {/* CENTRO DEL TAVOLO */}
         <div className="flex-1 relative flex items-center justify-center border-4 border-green-700 rounded-[100px] mx-8 my-4 bg-green-900 shadow-inner">
             
-            {/* PULSANTE SBIRCIA */}
+            {/* PULSANTE ultima mano */}
             {!isGameOver && (
             <button 
                 onClick={() => roomData.lastTrick && setShowLastTrick(true)}
@@ -177,9 +177,32 @@ export default function Table({ roomData, playerId, isGameOver }) {
             </button>
             )}
 
-            {topP && <div className="absolute top-4 text-green-300 font-bold text-lg">{topP.name} (Di fronte)</div>}
-            {leftP && <div className="absolute left-8 text-green-300 font-bold text-lg transform -rotate-90 origin-left">{leftP.name}</div>}
-            {rightP && <div className="absolute right-8 text-green-300 font-bold text-lg transform rotate-90 origin-right">{rightP.name}</div>}
+            {topP && (
+                <div className="absolute top-4 flex items-center gap-2 z-50">
+                    <span className="text-green-300 font-bold text-lg">{topP.name} (Di fronte)</span>
+                    {!topP.name.includes('Bot') && roomData.status === 'playing' && (
+                    <button onClick={() => onReplaceWithBot(topP.id, topP.name)} className="bg-red-700 hover:bg-red-600 text-white text-xs px-2 py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
+                    )}
+                </div>
+                )}
+                
+                {leftP && (
+                <div className="absolute left-10 flex items-center gap-2 transform -rotate-90 origin-left z-50">
+                    <span className="text-green-300 font-bold text-lg">{leftP.name}</span>
+                    {!leftP.name.includes('Bot') && roomData.status === 'playing' && (
+                    <button onClick={() => onReplaceWithBot(leftP.id, leftP.name)} className="bg-red-700 hover:bg-red-600 text-white text-xs px-2 py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
+                    )}
+                </div>
+                )}
+                
+                {rightP && (
+                <div className="absolute right-10 flex items-center gap-2 transform rotate-90 origin-right z-50">
+                    <span className="text-green-300 font-bold text-lg">{rightP.name}</span>
+                    {!rightP.name.includes('Bot') && roomData.status === 'playing' && (
+                    <button onClick={() => onReplaceWithBot(rightP.id, rightP.name)} className="bg-red-700 hover:bg-red-600 text-white text-xs px-2 py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
+                    )}
+                </div>
+            )}
 
             {/* MESSAGGIO CENTRALE DI RISOLUZIONE PRESA */}
             {roomData.status === 'resolving_trick' && winningPlay && (
