@@ -25,6 +25,33 @@ export default function Table({ roomData, playerId, isGameOver }) {
     const leftP = getPlayerByPos('left');
     const rightP = getPlayerByPos('right');
 
+    // --- LOGICA VISIVA: Chi sta vincendo la presa attualmente? ---
+    const getWinningPlay = () => {
+        const cards = roomData.tableCards;
+        if (!cards || cards.length === 0) return null;
+        
+        const powerOrder = ['4', '5', '6', '7', 'Donna', 'Cavallo', 'Re', 'Asso', '2', '3'];
+        const leadSuit = cards[0].card.suit;
+        
+        let bestPlay = cards[0];
+        let maxPower = powerOrder.indexOf(bestPlay.card.label);
+
+        for (let i = 1; i < cards.length; i++) {
+        const play = cards[i];
+        if (play.card.suit === leadSuit) {
+            const power = powerOrder.indexOf(play.card.label);
+            if (power > maxPower) {
+            maxPower = power;
+            bestPlay = play;
+            }
+        }
+        }
+        return bestPlay;
+    };
+
+    const winningPlay = getWinningPlay();
+    // -------------------------------------------------------------
+
     const renderSingheQuadrante = (id, pos) => {
         if (!id) return null;
         const count = roomData.singhe?.[id] || 0;
@@ -54,7 +81,6 @@ export default function Table({ roomData, playerId, isGameOver }) {
         const comical = count > 5 && (
         <div key="comical" className={`relative flex items-center justify-start w-12 h-12 opacity-100 drop-shadow-md ${comicalRotation}`}>
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-full">
-            
             {count >= 6 && (
                 <div className="absolute left-0 top-1/2 w-4 h-[2.5px] bg-purple-500 -rotate-[35deg] origin-left">
                 <div className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 bg-yellow-400 rounded-full border-[0.5px] border-purple-800"></div>
@@ -100,7 +126,6 @@ export default function Table({ roomData, playerId, isGameOver }) {
 
     return (
         <>
-        {/* FOGLIETTO DELLE SINGHE */}
         <div className={`bg-[#fdfbf2] w-36 h-36 rounded border border-gray-400 transition-all duration-1000 ease-in-out ${
             isGameOver 
             ? 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[2.5] rotate-0 shadow-[0_0_50px_rgba(220,38,38,1)] z-[60]'
@@ -114,17 +139,6 @@ export default function Table({ roomData, playerId, isGameOver }) {
             {renderSingheQuadrante(rightP?.id, 'right')}
         </div>
 
-        {/* PULSANTE SBIRCIA ULTIMA PRESA */}
-        {roomData.lastTrick && !isGameOver && (
-            <button 
-            onClick={() => setShowLastTrick(true)}
-            className="absolute top-16 right-4 bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded shadow-lg border-2 border-yellow-700 z-10 transition-colors"
-            >
-            👀 Sbircia Ultima Presa
-            </button>
-        )}
-
-        {/* MODALE ULTIMA PRESA */}
         {showLastTrick && (
             <div className="fixed inset-0 bg-black/80 z-[70] flex flex-col items-center justify-center backdrop-blur-sm">
             <h2 className="text-3xl text-yellow-400 font-bold mb-8">Ultima Presa</h2>
@@ -147,13 +161,40 @@ export default function Table({ roomData, playerId, isGameOver }) {
 
         {/* CENTRO DEL TAVOLO */}
         <div className="flex-1 relative flex items-center justify-center border-4 border-green-700 rounded-[100px] mx-8 my-4 bg-green-900 shadow-inner">
+            
+            {/* PULSANTE SBIRCIA */}
+            {!isGameOver && (
+            <button 
+                onClick={() => roomData.lastTrick && setShowLastTrick(true)}
+                disabled={!roomData.lastTrick}
+                className={`absolute top-6 right-8 font-bold py-2 px-5 rounded-full shadow-xl border-2 z-50 flex items-center gap-2 transition-all ${
+                    roomData.lastTrick 
+                        ? 'bg-yellow-600 hover:bg-yellow-500 text-red-950 border-yellow-700 hover:scale-105 cursor-pointer' 
+                        : 'bg-green-800 text-green-600 border-green-700 cursor-not-allowed'
+                }`}
+            >
+                👀 {roomData.lastTrick ? 'Ultima Presa' : 'Nessuna Presa'}
+            </button>
+            )}
+
             {topP && <div className="absolute top-4 text-green-300 font-bold text-lg">{topP.name} (Di fronte)</div>}
             {leftP && <div className="absolute left-8 text-green-300 font-bold text-lg transform -rotate-90 origin-left">{leftP.name}</div>}
             {rightP && <div className="absolute right-8 text-green-300 font-bold text-lg transform rotate-90 origin-right">{rightP.name}</div>}
 
+            {/* MESSAGGIO CENTRALE DI RISOLUZIONE PRESA */}
+            {roomData.status === 'resolving_trick' && winningPlay && (
+            <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40 rounded-[100px] backdrop-blur-[2px]">
+                <div className="bg-yellow-600 text-red-950 px-8 py-4 rounded-full text-3xl font-black shadow-2xl border-4 border-yellow-400 animate-bounce">
+                Ha preso {roomData.players[winningPlay.playerId]?.name}!
+                </div>
+            </div>
+            )}
+
             <div className="relative w-80 h-80">
             {roomData.tableCards?.map((play, idx) => {
                 const pos = getPosition(play.playerId);
+                const isWinningCard = winningPlay && winningPlay.playerId === play.playerId;
+
                 const posClasses = {
                 'bottom': "bottom-0 left-1/2 -translate-x-1/2 translate-y-10 z-40",
                 'top': "top-0 left-1/2 -translate-x-1/2 -translate-y-10 z-10",
@@ -163,7 +204,18 @@ export default function Table({ roomData, playerId, isGameOver }) {
 
                 return (
                 <div key={idx} className={`absolute ${posClasses}`}>
-                    <Card card={play.card} disabled={true} customClasses="w-24 h-36 shadow-2xl" />
+                    {/* ETICHETTA "In vantaggio" sulla carta vincente */}
+                    {isWinningCard && roomData.status === 'playing' && (
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-500 text-red-900 text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap z-50 shadow-md animate-pulse border border-yellow-700">
+                        Prende
+                        </div>
+                    )}
+                    <Card 
+                    card={play.card} 
+                    disabled={true} 
+                    // Aggiunge alone dorato alla carta che sta vincendo
+                    customClasses={`w-24 h-36 ${isWinningCard && roomData.status === 'playing' ? 'ring-4 ring-yellow-400 shadow-[0_0_25px_rgba(250,204,21,0.8)] scale-105' : 'shadow-2xl'}`} 
+                    />
                 </div>
                 );
             })}
