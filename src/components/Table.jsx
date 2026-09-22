@@ -126,15 +126,15 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
 
     return (
         <>
-        {/* FOGLIETTO DELLE SINGHE (Scalato per mobile) */}
+        {/* FOGLIETTO DELLE SINGHE */}
         <div className={`bg-[#fdfbf2] w-24 h-24 sm:w-36 sm:h-36 rounded border border-gray-400 transition-all duration-1000 ease-in-out ${
             isGameOver 
-            ? 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] scale-[1.2] sm:scale-[1.6] rotate-0 shadow-[0_0_50px_rgba(220,38,38,1)] z-[60]'
+            // 🔴 Spinto in alto (top-[38%]) e decisamente più grande (scale-[1.7] su mobile, scale-[2] su PC)
+            ? 'fixed top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[1.7] sm:scale-[2] rotate-0 shadow-[0_0_50px_rgba(220,38,38,1)] z-[60]'
             : 'absolute top-16 sm:top-28 left-2 sm:left-4 transform -rotate-3 shadow-lg z-10'
         }`}>
             <div className="absolute top-1/2 left-2 right-2 sm:left-3 sm:right-3 h-[2px] bg-blue-900/30 -translate-y-1/2 rounded-full"></div>
             <div className="absolute left-1/2 top-2 bottom-2 sm:top-3 sm:bottom-3 w-[2px] bg-blue-900/30 -translate-x-1/2 rounded-full"></div>
-            {/* Contenitore interno scalato su mobile per far entrare i segni */}
             <div className="scale-75 sm:scale-100 w-full h-full relative">
                 {renderSingheQuadrante(topP?.id, 'top')}
                 {renderSingheQuadrante(playerId, 'bottom')}
@@ -151,10 +151,10 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
                     <button onClick={() => setShowLastTrick(false)} className="text-white hover:text-red-500 font-black text-lg sm:text-xl leading-none">&times;</button>
                 </div>
                 <div className="flex gap-1 sm:gap-2">
-                    {roomData.lastTrick.map((play, idx) => (
+                    {/* Aggiunto il '?' per prevenire il crash in caso di disconnessione */}
+                    {roomData.lastTrick?.map((play, idx) => (
                     <div key={idx} className="flex flex-col items-center">
                         <span className="text-gray-300 text-[8px] sm:text-[10px] mb-1 font-bold truncate max-w-[40px]">{roomData.players[play.playerId]?.name}</span>
-                        {/* Carte rimpicciolite per non disturbare la vista */}
                         <Card card={play.card} disabled={true} customClasses="w-10 h-14 sm:w-12 sm:h-16" />
                     </div>
                     ))}

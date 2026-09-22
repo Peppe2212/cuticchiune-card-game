@@ -363,62 +363,66 @@ export default function Room() {
 
                 {/* OVERLAY: SCONFITTA PERSONALIZZATA */}
                 {isGameOver && (
-                    <div className="absolute inset-0 z-[50] flex flex-col justify-between items-center py-12 pointer-events-none bg-black/85 backdrop-blur-md">
+                    // 🔴 py-4 invece di py-12 per non sprecare spazio prezioso in alto e in basso
+                    <div className="absolute inset-0 z-[50] flex flex-col justify-between items-center py-4 sm:py-6 pointer-events-none bg-black/85 backdrop-blur-md">
                         
-                        {/* Esito per l'utente */}
-                        <div className="text-center drop-shadow-2xl mt-4 z-[70] px-2">
-                            <h1 className={`text-5xl sm:text-7xl font-black mb-2 sm:mb-4 animate-bounce ${amILoser ? 'text-red-500 drop-shadow-[0_0_20px_rgba(220,38,38,0.8)]' : 'text-green-400 drop-shadow-[0_0_20px_rgba(74,222,128,0.8)]'}`}>
+                        {/* Esito per l'utente (Schiacciato in alto) */}
+                        <div className="text-center drop-shadow-2xl z-[70] px-2 mt-2">
+                            <h1 className={`text-4xl sm:text-6xl font-black mb-1 sm:mb-2 animate-bounce ${amILoser ? 'text-red-500 drop-shadow-[0_0_20px_rgba(220,38,38,0.8)]' : 'text-green-400 drop-shadow-[0_0_20px_rgba(74,222,128,0.8)]'}`}>
                                 {amILoser ? 'HAI PERSO!' : 'HAI VINTO!'}
                             </h1>
-                            <h2 className="text-lg sm:text-2xl text-yellow-500 font-bold bg-black/50 px-4 sm:px-6 py-2 rounded-full border border-yellow-700/50">
+                            <h2 className="text-base sm:text-xl text-yellow-500 font-bold bg-black/50 px-4 sm:px-6 py-1.5 rounded-full border border-yellow-700/50 inline-block">
                                 {roomData.gameOverReason}
                             </h2>
                         </div>
                         
-                        {/* 🔴 MODIFICA: Contenitore raggruppato spinto in basso (mt-auto) */}
-                        <div className="mt-auto flex flex-col items-center gap-6 z-[70] mb-4">
+                        {/* CONTENITORE INFERIORE: Compattato e schiacciato in basso */}
+                        <div className="mt-auto flex flex-col items-center z-[70] mb-4 sm:mb-8 w-full px-4">
                             
                             {/* Se il giocatore ha perso ed è arrivata la banda */}
                             {amILoser && isTenSinghe && (
-                                <div className="text-center bg-red-900/90 p-4 sm:p-6 rounded-3xl border-4 border-red-500 backdrop-blur-md animate-pulse shadow-[0_0_30px_red]">
-                                    <p className="text-3xl sm:text-4xl text-yellow-400 font-black mb-2">🎺 ECCO LA BANDA! 🥁</p>
-                                    <p className="text-lg sm:text-xl text-white font-bold">Mano al portafoglio: offri da bere per tutti!</p>
+                                // 🔴 Aggiunto mb-6 sm:mb-8 per distanziare nettamente il banner dai pulsanti
+                                <div className="text-center bg-red-900/90 p-3 sm:p-4 rounded-2xl border-2 sm:border-4 border-red-500 backdrop-blur-md animate-pulse shadow-[0_0_30px_red] w-full max-w-sm mb-6 sm:mb-8">
+                                    <p className="text-xl sm:text-3xl text-yellow-400 font-black mb-1">🎺 ECCO LA BANDA! 🥁</p>
+                                    <p className="text-sm sm:text-lg text-white font-bold leading-tight">Mano al portafoglio: offri da bere!</p>
                                 </div>
                             )}
 
                             {/* Se il giocatore ha vinto, sfotte i perdenti */}
                             {!amILoser && (
-                                <div className="text-center bg-green-900/90 p-4 sm:p-6 rounded-3xl border-4 border-green-500 backdrop-blur-md">
-                                    <p className="text-lg text-white mb-1 font-bold">Chi paga da bere stasera:</p>
-                                    <strong className="text-yellow-400 uppercase text-4xl drop-shadow-[0_0_15px_black]">
+                                // 🔴 Aggiunto mb-6 sm:mb-8 per distanziare nettamente il banner dai pulsanti
+                                <div className="text-center bg-green-900/90 p-3 sm:p-4 rounded-2xl border-2 sm:border-4 border-green-500 backdrop-blur-md w-full max-w-sm mb-6 sm:mb-8">
+                                    <p className="text-sm sm:text-base text-white mb-1 font-bold">Chi paga da bere stasera:</p>
+                                    <strong className="text-yellow-400 uppercase text-2xl sm:text-3xl drop-shadow-[0_0_15px_black]">
                                         {roomData.losers?.join(' e ')}
                                     </strong>
                                 </div>
                             )}
 
                             {/* Comandi finali: Rivincita o Fuga */}
-                            <div className="pointer-events-auto flex flex-col sm:flex-row gap-4 items-center">
+                            {/* 🔴 Modificato w-full in w-[85%] sm:w-full e aggiunto max-w-[280px] sm:max-w-md per stringere i pulsanti su mobile */}
+                            <div className="pointer-events-auto flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch w-[85%] sm:w-full max-w-[280px] sm:max-w-md">
                                 {isRoomHost ? (
                                     <button 
                                         onClick={(e) => {
                                             e.currentTarget.disabled = true;
                                             resetGame(roomId, roomData);
                                         }} 
-                                        className="bg-yellow-600 hover:bg-yellow-500 text-red-900 font-black py-4 px-10 rounded-full text-2xl shadow-[0_0_30px_rgba(202,138,4,0.5)] transition-transform transform hover:scale-110 disabled:opacity-50"
+                                        className="flex-1 w-full bg-yellow-600 hover:bg-yellow-500 text-red-900 font-black py-3 rounded-full text-lg sm:text-xl shadow-[0_0_30px_rgba(202,138,4,0.5)] transition-transform transform hover:scale-105 disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-2"
                                     >
                                         🔄 Gioca la Rivincita!
                                     </button>
                                 ) : (
-                                    <div className="bg-gray-800 text-gray-400 font-bold py-4 px-10 rounded-full text-2xl border-2 border-gray-600">
-                                        ⏳ Attesa dell'Host...
+                                    <div className="flex-1 w-full flex items-center justify-center bg-gray-800 text-gray-400 font-bold py-3 rounded-full text-lg sm:text-xl border-2 border-gray-600 whitespace-nowrap gap-2">
+                                        ⏳ Attesa Host...
                                     </div>
                                 )}
 
                                 <button 
                                     onClick={() => navigate('/')} 
-                                    className="bg-red-800 hover:bg-red-700 text-white font-bold py-4 px-8 rounded-full text-xl shadow-lg border border-red-500 transition-colors"
+                                    className="flex-1 w-full bg-red-800 hover:bg-red-700 text-white font-bold py-3 rounded-full text-lg sm:text-xl shadow-lg border border-red-500 transition-colors whitespace-nowrap flex items-center justify-center gap-2"
                                 >
-                                    🚪 Abbandona Tavolo
+                                    🚪 Abbandona
                                 </button>
                             </div>
                         </div>
@@ -433,32 +437,38 @@ export default function Room() {
     return (
         <div className="min-h-screen bg-green-800 p-4 flex flex-col items-center">
             
-            {/* INTESTAZIONE LOBBY */}
-            <div className="w-full max-w-4xl flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 mb-8 bg-green-900 p-4 rounded-lg border border-green-700 shadow-xl">
+            {/* INTESTAZIONE LOBBY (Tutto su una riga orizzontale) */}
+            <div className="w-full max-w-4xl flex justify-between items-center mb-8 bg-green-900 p-2 sm:p-4 rounded-lg border border-green-700 shadow-xl gap-2">
+                
+                {/* Bottone Sinistro: "Home" su mobile, "Torna alla Home" su PC */}
                 <button 
                     onClick={() => navigate('/')}
-                    className="w-full sm:w-auto justify-center bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-md flex items-center gap-2"
+                    className="bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-2 sm:px-6 rounded-lg transition-colors shadow-md flex items-center gap-1 sm:gap-2 text-xs sm:text-base flex-shrink-0"
+                    title="Torna alla Home"
                 >
-                    🔙 Torna alla Home
+                    🔙 
+                    <span className="sm:hidden">Home</span>
+                    <span className="hidden sm:inline">Torna alla Home</span>
                 </button>
                 
-                {/* Il titolo appare sempre e ridimensionato */}
-                <h2 className="text-2xl sm:text-3xl text-yellow-500 font-black tracking-widest uppercase drop-shadow-md">
+                {/* Titolo Centrale */}
+                <h2 className="text-xl sm:text-3xl text-yellow-500 font-black tracking-widest uppercase drop-shadow-md text-center flex-1 truncate px-1">
                     Cuticchiune
                 </h2>
                 
+                {/* Bottone Destro: Codice della stanza */}
                 <button 
                     onClick={() => {
                         navigator.clipboard.writeText(roomId);
                         alert(`Codice ${roomId} copiato! Invia questo codice ai tuoi amici.`);
                     }}
-                    className="w-full sm:w-auto justify-center bg-green-700 hover:bg-green-600 text-white font-mono py-2 px-6 rounded-lg transition-colors shadow-md flex items-center gap-2 border border-green-500"
+                    className="bg-green-700 hover:bg-green-600 text-white font-mono py-2 px-2 sm:px-6 rounded-lg transition-colors shadow-md flex items-center gap-1 sm:gap-2 border border-green-500 text-xs sm:text-base flex-shrink-0"
                     title="Copia codice stanza"
                 >
                     📋 {roomId}
                 </button>
             </div>
-
+            
             {/* CORPO CENTRALE (Lista giocatori e bottoni) */}
             <div className="text-center mb-12 mt-8">
                 <h3 className="text-white text-2xl mb-2 font-bold">Giocatori seduti ({players.length}/4)</h3>
