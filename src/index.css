@@ -1,18 +1,16 @@
 @import "tailwindcss";
 
-/* BLOCCO SCROLL MOBILE E RIMBALZI */
+/* BLOCCO SCROLL MOBILE OTTIMIZZATO PER iOS */
 html, body {
   overscroll-behavior-y: none; /* Disattiva il "pull-to-refresh" */
-  overflow: hidden; /* Impedisce qualsiasi scroll */
-  position: fixed; /* Ancoraggio assoluto fondamentale per iOS Safari */
-  width: 100%;
-  height: 100%;
+  background-color: #166534; /* Colore verde identico al bg-green-800 di Tailwind */
   margin: 0;
   padding: 0;
+  width: 100%;
+  height: 100%;
 }
 
 #root {
   width: 100%;
   height: 100%;
-  overflow: hidden;
 }
