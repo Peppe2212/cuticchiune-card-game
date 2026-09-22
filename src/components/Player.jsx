@@ -46,23 +46,23 @@ export default function Player({ roomData, playerId, roomId }) {
     };
 
     return (
-        <div className="bg-green-900 p-4 rounded-t-2xl relative">
-        <div className="flex justify-between items-end mb-4 px-4 border-b border-green-700 pb-2">
+        <div className="bg-green-900 p-2 sm:p-4 rounded-t-2xl relative">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-2 sm:mb-4 px-2 sm:px-4 border-b border-green-700 pb-2 gap-2">
             <div>
-            <h3 className="text-white text-xl flex items-center gap-2">
+            <h3 className="text-white text-sm sm:text-xl flex flex-wrap items-center gap-2">
                 La tua mano ({myData.name}) 
-                {isMyTurn && !isProcessing && <span className="bg-yellow-500 text-red-900 text-sm px-2 py-0.5 rounded-full font-bold animate-pulse">IL TUO TURNO</span>}
-                {isProcessing && <span className="bg-gray-500 text-white text-sm px-2 py-0.5 rounded-full font-bold animate-pulse">ATTESA SERVER...</span>}
+                {isMyTurn && !isProcessing && <span className="bg-yellow-500 text-red-900 text-[10px] sm:text-sm px-2 py-0.5 rounded-full font-bold animate-pulse">IL TUO TURNO</span>}
+                {isProcessing && <span className="bg-gray-500 text-white text-[10px] sm:text-sm px-2 py-0.5 rounded-full font-bold animate-pulse">ATTESA...</span>}
             </h3>
-            <p className="text-yellow-400 font-mono text-lg mt-1 tracking-wider">
-                Bottino: <strong className="text-2xl">{myData.points || 0}</strong> pt
+            <p className="text-yellow-400 font-mono text-sm sm:text-lg mt-1 tracking-wider">
+                Bottino: <strong className="text-lg sm:text-2xl">{myData.points || 0}</strong> pt
             </p>
             </div>
             
             <button 
             onClick={() => setIsSorted(!isSorted)}
             disabled={isProcessing}
-            className={`px-4 py-2 rounded-lg font-bold transition-colors border-2 shadow-lg disabled:opacity-50 ${
+            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-bold transition-colors border sm:border-2 shadow-lg disabled:opacity-50 text-xs sm:text-base w-full sm:w-auto ${
                 isSorted ? 'bg-yellow-600 text-white border-yellow-500' : 'bg-green-800 text-gray-200 border-green-600 hover:bg-green-700'
             }`}
             >
@@ -70,7 +70,8 @@ export default function Player({ roomData, playerId, roomId }) {
             </button>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-2">
+        {/* gap-1 riduce lo spazio tra le carte sui telefoni */}
+        <div className="flex flex-wrap justify-center gap-1 sm:gap-2">
             {displayHand.map((card, idx) => (
             <div 
                 key={idx} 
@@ -80,7 +81,8 @@ export default function Player({ roomData, playerId, roomId }) {
                 card={card} 
                 disabled={!canPlay || isProcessing}
                 onClick={() => handlePlayCard(card)}
-                customClasses="w-20 h-28"
+                // Carte in mano scalate per mobile
+                customClasses="w-[3.5rem] h-[5rem] sm:w-20 sm:h-28"
                 />
             </div>
             ))}

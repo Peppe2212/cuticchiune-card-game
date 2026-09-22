@@ -126,49 +126,51 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
 
     return (
         <>
-        {/* FOGLIETTO DELLE SINGHE */}
-        <div className={`bg-[#fdfbf2] w-36 h-36 rounded border border-gray-400 transition-all duration-1000 ease-in-out ${
+        {/* FOGLIETTO DELLE SINGHE (Scalato per mobile) */}
+        <div className={`bg-[#fdfbf2] w-24 h-24 sm:w-36 sm:h-36 rounded border border-gray-400 transition-all duration-1000 ease-in-out ${
             isGameOver 
-            // Rimpicciolito da scale-[2.5] a scale-[1.6] e alzato leggermente con -translate-y-[60%]
-            ? 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] scale-[1.6] rotate-0 shadow-[0_0_50px_rgba(220,38,38,1)] z-[60]'
-            : 'absolute top-28 left-4 transform -rotate-3 shadow-lg z-10'
+            ? 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] scale-[1.2] sm:scale-[1.6] rotate-0 shadow-[0_0_50px_rgba(220,38,38,1)] z-[60]'
+            : 'absolute top-16 sm:top-28 left-2 sm:left-4 transform -rotate-3 shadow-lg z-10'
         }`}>
-            <div className="absolute top-1/2 left-3 right-3 h-[2px] bg-blue-900/30 -translate-y-1/2 rounded-full"></div>
-            <div className="absolute left-1/2 top-3 bottom-3 w-[2px] bg-blue-900/30 -translate-x-1/2 rounded-full"></div>
-            {renderSingheQuadrante(topP?.id, 'top')}
-            {renderSingheQuadrante(playerId, 'bottom')}
-            {renderSingheQuadrante(leftP?.id, 'left')}
-            {renderSingheQuadrante(rightP?.id, 'right')}
+            <div className="absolute top-1/2 left-2 right-2 sm:left-3 sm:right-3 h-[2px] bg-blue-900/30 -translate-y-1/2 rounded-full"></div>
+            <div className="absolute left-1/2 top-2 bottom-2 sm:top-3 sm:bottom-3 w-[2px] bg-blue-900/30 -translate-x-1/2 rounded-full"></div>
+            {/* Contenitore interno scalato su mobile per far entrare i segni */}
+            <div className="scale-75 sm:scale-100 w-full h-full relative">
+                {renderSingheQuadrante(topP?.id, 'top')}
+                {renderSingheQuadrante(playerId, 'bottom')}
+                {renderSingheQuadrante(leftP?.id, 'left')}
+                {renderSingheQuadrante(rightP?.id, 'right')}
+            </div>
         </div>
 
         {/* WIDGET ULTIMA PRESA (Compatto e fluttuante) */}
         {showLastTrick && (
-            <div className="absolute top-20 right-8 bg-black/90 p-4 rounded-xl border-2 border-yellow-600 z-[70] shadow-2xl backdrop-blur-md animate-fade-in">
-                <div className="flex justify-between items-center mb-3">
-                    <h2 className="text-sm text-yellow-400 font-bold uppercase tracking-wider">Ultima Presa</h2>
-                    <button onClick={() => setShowLastTrick(false)} className="text-white hover:text-red-500 font-black text-xl leading-none">&times;</button>
+            <div className="absolute top-16 sm:top-20 right-2 sm:right-8 bg-black/90 p-2 sm:p-4 rounded-xl border-2 border-yellow-600 z-[70] shadow-2xl backdrop-blur-md animate-fade-in">
+                <div className="flex justify-between items-center mb-2 sm:mb-3 gap-4">
+                    <h2 className="text-xs sm:text-sm text-yellow-400 font-bold uppercase tracking-wider">Ultima Presa</h2>
+                    <button onClick={() => setShowLastTrick(false)} className="text-white hover:text-red-500 font-black text-lg sm:text-xl leading-none">&times;</button>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1 sm:gap-2">
                     {roomData.lastTrick.map((play, idx) => (
                     <div key={idx} className="flex flex-col items-center">
-                        <span className="text-gray-300 text-[10px] mb-1 font-bold">{roomData.players[play.playerId]?.name}</span>
+                        <span className="text-gray-300 text-[8px] sm:text-[10px] mb-1 font-bold truncate max-w-[40px]">{roomData.players[play.playerId]?.name}</span>
                         {/* Carte rimpicciolite per non disturbare la vista */}
-                        <Card card={play.card} disabled={true} customClasses="w-12 h-16" />
+                        <Card card={play.card} disabled={true} customClasses="w-10 h-14 sm:w-12 sm:h-16" />
                     </div>
                     ))}
                 </div>
             </div>
         )}
 
-        {/* CENTRO DEL TAVOLO */}
-        <div className="flex-1 relative flex items-center justify-center border-4 border-green-700 rounded-[100px] mx-8 my-4 bg-green-900 shadow-inner">
+        {/* CENTRO DEL TAVOLO (Bordi, margini e arrotondamenti adattivi) */}
+        <div className="flex-1 relative flex items-center justify-center border-2 sm:border-4 border-green-700 rounded-[40px] sm:rounded-[100px] mx-1 sm:mx-8 my-2 sm:my-4 bg-green-900 shadow-inner">
             
-            {/* PULSANTE ultima mano */}
+            {/* PULSANTE ULTIMA MANO */}
             {!isGameOver && (
             <button 
                 onClick={() => roomData.lastTrick && setShowLastTrick(true)}
                 disabled={!roomData.lastTrick}
-                className={`absolute top-6 right-8 font-bold py-2 px-5 rounded-full shadow-xl border-2 z-50 flex items-center gap-2 transition-all ${
+                className={`absolute top-2 sm:top-6 right-2 sm:right-8 font-bold py-1 px-2 sm:py-2 sm:px-5 rounded-full shadow-xl border sm:border-2 z-50 flex items-center gap-1 sm:gap-2 transition-all text-[10px] sm:text-base ${
                     roomData.lastTrick 
                         ? 'bg-yellow-600 hover:bg-yellow-500 text-red-950 border-yellow-700 hover:scale-105 cursor-pointer' 
                         : 'bg-green-800 text-green-600 border-green-700 cursor-not-allowed'
@@ -178,67 +180,70 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
             </button>
             )}
 
+            {/* NOMI AVVERSARI (Rimpiccioliti e ravvicinati su mobile) */}
             {topP && (
-                <div className="absolute top-4 flex items-center gap-2 z-50">
-                    <span className="text-green-300 font-bold text-lg">{topP.name} (Di fronte)</span>
+                <div className="absolute top-2 sm:top-4 flex items-center gap-1 sm:gap-2 z-50">
+                    <span className="text-green-300 font-bold text-xs sm:text-lg">{topP.name} <span className="hidden sm:inline">(Di fronte)</span></span>
                     {!topP.name.includes('Bot') && roomData.status === 'playing' && (
-                    <button onClick={() => onReplaceWithBot(topP.id, topP.name)} className="bg-red-700 hover:bg-red-600 text-white text-xs px-2 py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
+                    <button onClick={() => onReplaceWithBot(topP.id, topP.name)} className="bg-red-700 hover:bg-red-600 text-white text-[8px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
                     )}
                 </div>
-                )}
+            )}
                 
-                {leftP && (
-                <div className="absolute left-10 flex items-center gap-2 transform -rotate-90 origin-left z-50">
-                    <span className="text-green-300 font-bold text-lg">{leftP.name}</span>
+            {leftP && (
+                <div className="absolute left-2 sm:left-10 flex items-center gap-1 sm:gap-2 transform -rotate-90 origin-left z-50">
+                    <span className="text-green-300 font-bold text-xs sm:text-lg">{leftP.name}</span>
                     {!leftP.name.includes('Bot') && roomData.status === 'playing' && (
-                    <button onClick={() => onReplaceWithBot(leftP.id, leftP.name)} className="bg-red-700 hover:bg-red-600 text-white text-xs px-2 py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
+                    <button onClick={() => onReplaceWithBot(leftP.id, leftP.name)} className="bg-red-700 hover:bg-red-600 text-white text-[8px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
                     )}
                 </div>
-                )}
+            )}
                 
-                {rightP && (
-                <div className="absolute right-10 flex items-center gap-2 transform rotate-90 origin-right z-50">
-                    <span className="text-green-300 font-bold text-lg">{rightP.name}</span>
+            {rightP && (
+                <div className="absolute right-2 sm:right-10 flex items-center gap-1 sm:gap-2 transform rotate-90 origin-right z-50">
+                    <span className="text-green-300 font-bold text-xs sm:text-lg">{rightP.name}</span>
                     {!rightP.name.includes('Bot') && roomData.status === 'playing' && (
-                    <button onClick={() => onReplaceWithBot(rightP.id, rightP.name)} className="bg-red-700 hover:bg-red-600 text-white text-xs px-2 py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
+                    <button onClick={() => onReplaceWithBot(rightP.id, rightP.name)} className="bg-red-700 hover:bg-red-600 text-white text-[8px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 rounded shadow" title="Sostituisci con Bot">🤖</button>
                     )}
                 </div>
             )}
 
             {/* MESSAGGIO CENTRALE DI RISOLUZIONE PRESA */}
             {roomData.status === 'resolving_trick' && winningPlay && (
-            <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40 rounded-[100px] backdrop-blur-[2px]">
-                <div className="bg-yellow-600 text-red-950 px-8 py-4 rounded-full text-3xl font-black shadow-2xl border-4 border-yellow-400 animate-bounce">
+            <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40 rounded-[40px] sm:rounded-[100px] backdrop-blur-[2px]">
+                <div className="bg-yellow-600 text-red-950 px-4 py-2 sm:px-8 sm:py-4 rounded-full text-lg sm:text-3xl font-black shadow-2xl border-2 sm:border-4 border-yellow-400 animate-bounce text-center">
                 Ha preso {roomData.players[winningPlay.playerId]?.name}!
                 </div>
             </div>
             )}
 
-            <div className="relative w-80 h-80">
+            {/* GRIGLIA DELLE CARTE A TERRA */}
+            <div className="relative w-52 h-52 sm:w-80 sm:h-80">
             {roomData.tableCards?.map((play, idx) => {
                 const pos = getPosition(play.playerId);
                 const isWinningCard = winningPlay && winningPlay.playerId === play.playerId;
 
+                // Spostamenti dinamici per avvicinare le carte al centro nei telefoni
                 const posClasses = {
-                'bottom': "bottom-0 left-1/2 -translate-x-1/2 translate-y-10 z-40",
-                'top': "top-0 left-1/2 -translate-x-1/2 -translate-y-10 z-10",
-                'left': "top-1/2 left-0 -translate-y-1/2 -translate-x-12 z-20",
-                'right': "top-1/2 right-0 -translate-y-1/2 translate-x-12 z-30"
+                'bottom': "bottom-0 left-1/2 -translate-x-1/2 translate-y-6 sm:translate-y-10 z-40",
+                'top': "top-0 left-1/2 -translate-x-1/2 -translate-y-6 sm:-translate-y-10 z-10",
+                'left': "top-1/2 left-0 -translate-y-1/2 -translate-x-8 sm:-translate-x-12 z-20",
+                'right': "top-1/2 right-0 -translate-y-1/2 translate-x-8 sm:translate-x-12 z-30"
                 }[pos];
 
                 return (
                 <div key={idx} className={`absolute ${posClasses}`}>
-                    {/* ETICHETTA "In vantaggio" sulla carta vincente */}
+                    {/* ETICHETTA "Prende" sulla carta vincente */}
                     {isWinningCard && roomData.status === 'playing' && (
-                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-500 text-red-900 text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap z-50 shadow-md animate-pulse border border-yellow-700">
+                        <div className="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 bg-yellow-500 text-red-900 text-[8px] sm:text-[10px] font-black px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full whitespace-nowrap z-50 shadow-md animate-pulse border border-yellow-700">
                         Prende
                         </div>
                     )}
                     <Card 
                     card={play.card} 
                     disabled={true} 
-                    // Aggiunge alone dorato alla carta che sta vincendo
-                    customClasses={`w-24 h-36 ${isWinningCard && roomData.status === 'playing' ? 'ring-4 ring-yellow-400 shadow-[0_0_25px_rgba(250,204,21,0.8)] scale-105' : 'shadow-2xl'}`} 
+                    // Carte ridotte sui telefoni e grandi su PC
+                    customClasses={`w-16 h-24 sm:w-24 sm:h-36 ${isWinningCard && roomData.status === 'playing' ? 'ring-2 sm:ring-4 ring-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.8)] scale-105' : 'shadow-xl sm:shadow-2xl'}`} 
                     />
                 </div>
                 );
@@ -247,4 +252,5 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
         </div>
         </>
     );
+    
 }

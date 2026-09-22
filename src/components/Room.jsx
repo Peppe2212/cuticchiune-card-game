@@ -238,28 +238,33 @@ export default function Room() {
     // ==========================================
 
     if (activeStates.includes(roomData?.status)) {
-
         return (
-            <div className="min-h-screen bg-green-800 flex flex-col justify-between p-4 relative overflow-hidden">
+            <div className="min-h-screen bg-green-800 flex flex-col justify-between p-2 sm:p-4 relative overflow-hidden">
                 
-                {/* INTESTAZIONE IN GIOCO */}
-                <div className="flex justify-between items-center text-white bg-green-900 p-3 rounded-lg z-10 shadow-md border border-green-700">
-                    <button 
-                        onClick={() => {
-                        if (window.confirm("Vuoi davvero abbandonare la partita in corso?")) navigate('/');
-                        }}
-                        className="bg-red-800 hover:bg-red-700 text-white text-sm font-bold py-1.5 px-4 rounded transition-colors shadow"
-                    >
-                        🚪 Abbandona
-                    </button>
+                {/* INTESTAZIONE IN GIOCO (Impilata su mobile, orizzontale su PC) */}
+                <div className="flex flex-col sm:flex-row justify-between items-center text-white bg-green-900 p-2 sm:p-3 rounded-lg z-10 shadow-md border border-green-700 gap-2 sm:gap-0">
+                    <div className="flex justify-between w-full sm:w-auto gap-4">
+                        <button 
+                            onClick={() => {
+                            if (window.confirm("Vuoi davvero abbandonare la partita in corso?")) navigate('/');
+                            }}
+                            className="bg-red-800 hover:bg-red-700 text-white text-xs sm:text-sm font-bold py-1.5 px-3 sm:px-4 rounded transition-colors shadow"
+                        >
+                            🚪 Abbandona
+                        </button>
+                        
+                        <div className="bg-green-950 px-2 py-1.5 sm:px-3 sm:py-1.5 rounded font-mono text-xs sm:text-sm text-green-300 border border-green-800 sm:hidden">
+                            Stanza: {roomId}
+                        </div>
+                    </div>
                     
-                    <div className="flex-1 text-center">
-                        <span className="font-bold text-yellow-400 text-lg tracking-wide uppercase">
+                    <div className="flex-1 text-center w-full sm:w-auto bg-green-950 sm:bg-transparent py-1 sm:py-0 rounded">
+                        <span className="font-bold text-yellow-400 text-sm sm:text-lg tracking-wide uppercase">
                         Turno di: {roomData.players[roomData.turnIndex]?.name}
                         </span>
                     </div>
 
-                    <div className="bg-green-950 px-3 py-1.5 rounded font-mono text-sm text-green-300 border border-green-800">
+                    <div className="hidden sm:block bg-green-950 px-3 py-1.5 rounded font-mono text-sm text-green-300 border border-green-800">
                         Stanza: {roomId}
                     </div>
                 </div>
@@ -280,13 +285,13 @@ export default function Room() {
                 {/* OVERLAY: AZIONE ILLEGALE (Penalità Compatta) */}
                 {roomData.status === 'suit_penalty' && (
                     <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                        <div className="bg-red-900 border-4 border-yellow-500 p-6 rounded-2xl max-w-md w-full shadow-[0_0_50px_rgba(220,38,38,0.8)] text-center">
-                            <h1 className="text-4xl mb-4 animate-bounce font-black text-white drop-shadow-lg">🚨 ILLEGALE 🚨</h1>
-                            <p className="text-lg text-white mb-2 leading-relaxed"><strong className="text-yellow-400 text-2xl uppercase block">{roomData.penaltyInfo?.name}</strong> Non ha corrisposto, forse si sente alla Ludoteca!</p>
-                            <div className="bg-red-950 p-3 rounded-lg border border-red-800 my-4">
-                                <p className="text-base text-gray-300 italic">A terra c'era <strong className="text-white">{roomData.penaltyInfo?.expectedSuit}</strong>,<br/>ma ha buttato <strong className="text-white">{roomData.penaltyInfo?.wrongSuit}</strong>.</p>
+                        <div className="bg-red-900 border-2 sm:border-4 border-yellow-500 p-4 sm:p-6 rounded-2xl max-w-md w-full shadow-[0_0_50px_rgba(220,38,38,0.8)] text-center">
+                            <h1 className="text-2xl sm:text-4xl mb-2 sm:mb-4 animate-bounce font-black text-white drop-shadow-lg">🚨 ILLEGALE 🚨</h1>
+                            <p className="text-sm sm:text-lg text-white mb-2 leading-tight sm:leading-relaxed"><strong className="text-yellow-400 text-lg sm:text-2xl uppercase block">{roomData.penaltyInfo?.name}</strong> Non ha corrisposto, forse si sente alla Ludoteca!</p>
+                            <div className="bg-red-950 p-2 sm:p-3 rounded-lg border border-red-800 my-3 sm:my-4">
+                                <p className="text-xs sm:text-base text-gray-300 italic">A terra c'era <strong className="text-white">{roomData.penaltyInfo?.expectedSuit}</strong>,<br/>ma ha buttato <strong className="text-white">{roomData.penaltyInfo?.wrongSuit}</strong>.</p>
                             </div>
-                            <div className="text-4xl mb-6 font-black text-white bg-red-600 py-2 rounded-lg transform -rotate-2 shadow-xl border-2 border-red-400">✍️ +1 SINGA</div>
+                            <div className="text-2xl sm:text-4xl mb-4 sm:mb-6 font-black text-white bg-red-600 py-1 sm:py-2 rounded-lg transform -rotate-2 shadow-xl border-2 border-red-400">✍️ +1 SINGA</div>
                             
                             {/* CONTROLLO RACE CONDITION */}
                             {isRoomHost ? (
@@ -296,43 +301,44 @@ export default function Room() {
                                         e.currentTarget.innerText = "Applicando...";
                                         acknowledgePenalty(roomId, roomData);
                                     }} 
-                                    className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-900 font-bold py-3 px-8 rounded-xl text-xl transition-transform hover:scale-105 shadow-xl disabled:opacity-50"
+                                    className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-900 font-bold py-3 px-8 rounded-xl text-lg sm:text-xl transition-transform hover:scale-105 shadow-xl disabled:opacity-50"
                                 >
                                     Continua
                                 </button>
                             ) : (
-                                <div className="w-full bg-gray-800/80 text-gray-400 font-bold py-3 rounded-xl text-xl border border-gray-600">
+                                <div className="w-full bg-gray-800/80 text-gray-400 font-bold py-3 rounded-xl text-lg sm:text-xl border border-gray-600">
                                     ⏳ Attesa Host...
                                 </div>
                             )}
                         </div>
                     </div>
                 )}
-            {roomData.status === 'between_hands' && (
+
+                {roomData.status === 'between_hands' && (
                     <div className="absolute inset-0 z-[80] flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                         <style>{`@keyframes shrinkBar { from { width: 100%; } to { width: 0%; } }`}</style>
                         
-                        {/* Messaggio Goliardico Fluttuante */}
-                        <div className={`mb-6 px-6 py-3 rounded-full font-black text-xl shadow-2xl border-2 ${goliardicMessage.includes('BANDA') ? 'bg-red-600 text-white border-yellow-400 animate-bounce' : 'bg-black/80 text-yellow-400 border-yellow-600 animate-pulse'}`}>
+                        {/* Messaggio Goliardico Fluttuante (Ridimensionato su mobile) */}
+                        <div className={`mb-4 sm:mb-6 px-4 sm:px-6 py-2 sm:py-3 rounded-full font-black text-sm sm:text-xl shadow-2xl border-2 text-center ${goliardicMessage.includes('BANDA') ? 'bg-red-600 text-white border-yellow-400 animate-bounce' : 'bg-black/80 text-yellow-400 border-yellow-600 animate-pulse'}`}>
                             {goliardicMessage}
                         </div>
 
-                        <div className="bg-green-800 p-6 rounded-2xl border-4 border-yellow-600 max-w-md w-full text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
-                            <h2 className="text-3xl text-yellow-500 font-black mb-6 drop-shadow-md">Mano Terminata!</h2>
-                            <div className="space-y-3 mb-6 text-left">
+                        <div className="bg-green-800 p-4 sm:p-6 rounded-2xl border-2 sm:border-4 border-yellow-600 max-w-md w-full text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+                            <h2 className="text-2xl sm:text-3xl text-yellow-500 font-black mb-4 sm:mb-6 drop-shadow-md">Mano Terminata!</h2>
+                            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 text-left">
                                 {players.map((p, idx) => (
-                                    <div key={idx} className="bg-green-700 p-3 rounded-xl flex justify-between items-center text-white shadow-inner border border-green-600">
-                                        <span className="font-bold text-lg">{p.name}</span>
-                                        <div className="flex gap-3 items-center text-sm">
+                                    <div key={idx} className="bg-green-700 p-2 sm:p-3 rounded-xl flex justify-between items-center text-white shadow-inner border border-green-600">
+                                        <span className="font-bold text-sm sm:text-lg">{p.name}</span>
+                                        <div className="flex gap-2 sm:gap-3 items-center text-xs sm:text-sm">
                                             <span className="text-gray-300">Prese: {p.validTricks || 0}</span>
-                                            <span className="font-bold text-yellow-400 bg-green-900 px-2 py-1 rounded-lg border border-green-800">Pt: {p.points || 0}</span>
+                                            <span className="font-bold text-yellow-400 bg-green-900 px-1.5 sm:px-2 py-1 rounded-lg border border-green-800">Pt: {p.points || 0}</span>
                                             <span className="text-red-400 font-bold ml-1">Singhe: {roomData.singhe?.[p.id] || 0}</span>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                             
-                            <div className="w-full bg-green-950 rounded-full h-3 mb-4 border border-green-700 overflow-hidden relative shadow-inner">
+                            <div className="w-full bg-green-950 rounded-full h-2 sm:h-3 mb-3 sm:mb-4 border border-green-700 overflow-hidden relative shadow-inner">
                                 <div className="bg-yellow-500 h-full rounded-full animate-[shrinkBar_10s_linear_forwards]"></div>
                             </div>
 
@@ -342,12 +348,12 @@ export default function Room() {
                                         e.currentTarget.disabled = true;
                                         startNextHand(roomId, roomData);
                                     }} 
-                                    className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-950 font-black py-3 rounded-xl text-xl transition-transform hover:scale-105 shadow-xl disabled:opacity-50"
+                                    className="w-full bg-yellow-600 hover:bg-yellow-500 text-red-950 font-black py-2 sm:py-3 rounded-xl text-lg sm:text-xl transition-transform hover:scale-105 shadow-xl disabled:opacity-50"
                                 >
                                     Distribuisci Subito ⏭
                                 </button>
                             ) : (
-                                <div className="w-full bg-gray-800/80 text-gray-400 font-bold py-3 rounded-xl text-xl border border-gray-600">
+                                <div className="w-full bg-gray-800/80 text-gray-400 font-bold py-2 sm:py-3 rounded-xl text-lg sm:text-xl border border-gray-600">
                                     ⏳ Attesa Host...
                                 </div>
                             )}
@@ -355,17 +361,16 @@ export default function Room() {
                     </div>
                 )}
 
-                
                 {/* OVERLAY: SCONFITTA PERSONALIZZATA */}
                 {isGameOver && (
                     <div className="absolute inset-0 z-[50] flex flex-col justify-between items-center py-12 pointer-events-none bg-black/85 backdrop-blur-md">
                         
-                        {/* Esito per l'utente (Resta in alto) */}
-                        <div className="text-center drop-shadow-2xl mt-4 z-[70]">
-                            <h1 className={`text-7xl font-black mb-4 animate-bounce ${amILoser ? 'text-red-500 drop-shadow-[0_0_20px_rgba(220,38,38,0.8)]' : 'text-green-400 drop-shadow-[0_0_20px_rgba(74,222,128,0.8)]'}`}>
+                        {/* Esito per l'utente */}
+                        <div className="text-center drop-shadow-2xl mt-4 z-[70] px-2">
+                            <h1 className={`text-5xl sm:text-7xl font-black mb-2 sm:mb-4 animate-bounce ${amILoser ? 'text-red-500 drop-shadow-[0_0_20px_rgba(220,38,38,0.8)]' : 'text-green-400 drop-shadow-[0_0_20px_rgba(74,222,128,0.8)]'}`}>
                                 {amILoser ? 'HAI PERSO!' : 'HAI VINTO!'}
                             </h1>
-                            <h2 className="text-2xl text-yellow-500 font-bold bg-black/50 px-6 py-2 rounded-full border border-yellow-700/50">
+                            <h2 className="text-lg sm:text-2xl text-yellow-500 font-bold bg-black/50 px-4 sm:px-6 py-2 rounded-full border border-yellow-700/50">
                                 {roomData.gameOverReason}
                             </h2>
                         </div>
@@ -429,16 +434,16 @@ export default function Room() {
         <div className="min-h-screen bg-green-800 p-4 flex flex-col items-center">
             
             {/* INTESTAZIONE LOBBY */}
-            <div className="w-full max-w-4xl flex justify-between items-center mb-8 bg-green-900 p-4 rounded-lg border border-green-700 shadow-xl">
+            <div className="w-full max-w-4xl flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 mb-8 bg-green-900 p-4 rounded-lg border border-green-700 shadow-xl">
                 <button 
                     onClick={() => navigate('/')}
-                    className="bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-md flex items-center gap-2"
+                    className="w-full sm:w-auto justify-center bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-md flex items-center gap-2"
                 >
                     🔙 Torna alla Home
                 </button>
                 
-                {/* Spazio per il logo futuro */}
-                <h2 className="text-3xl text-yellow-500 font-black tracking-widest uppercase drop-shadow-md hidden sm:block">
+                {/* Il titolo appare sempre e ridimensionato */}
+                <h2 className="text-2xl sm:text-3xl text-yellow-500 font-black tracking-widest uppercase drop-shadow-md">
                     Cuticchiune
                 </h2>
                 
@@ -447,7 +452,7 @@ export default function Room() {
                         navigator.clipboard.writeText(roomId);
                         alert(`Codice ${roomId} copiato! Invia questo codice ai tuoi amici.`);
                     }}
-                    className="bg-green-700 hover:bg-green-600 text-white font-mono py-2 px-6 rounded-lg transition-colors shadow-md flex items-center gap-2 border border-green-500"
+                    className="w-full sm:w-auto justify-center bg-green-700 hover:bg-green-600 text-white font-mono py-2 px-6 rounded-lg transition-colors shadow-md flex items-center gap-2 border border-green-500"
                     title="Copia codice stanza"
                 >
                     📋 {roomId}
