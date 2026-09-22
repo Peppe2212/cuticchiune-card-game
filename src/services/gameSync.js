@@ -197,9 +197,9 @@ export async function playCard(roomId, playerId, cardToPlay, roomData) {
 }
 
 // 7. [AUTO-PLAY BOT] Intelligenza Artificiale Euristica per il Bot
+// 7. [AUTO-PLAY BOT] Intelligenza "A Scansare" per il Cuticchiune
 export async function playBotTurn(roomId) {
   try {
-    // 1. Il bot legge il tavolo aggiornato
     const snapshot = await get(ref(db, `rooms/${roomId}`));
     if (!snapshot.exists()) return;
     const roomData = snapshot.val();
@@ -207,70 +207,72 @@ export async function playBotTurn(roomId) {
     const botId = roomData.turnIndex;
     if (!botId) return;
     
-    const botHand = roomData.players[botId]?.hand;
+    const botData = roomData.players[botId];
+    const botHand = botData?.hand;
     if (!botHand || botHand.length === 0) return;
 
     const tableCards = roomData.tableCards || [];
     const leadSuit = tableCards.length > 0 ? tableCards[0].card.suit : null;
 
-    // 2. Filtra le carte valide per rispondere a seme
     let validCards = botHand;
     if (leadSuit) {
       const matchingSuit = botHand.filter(c => c.suit === leadSuit);
       if (matchingSuit.length > 0) validCards = matchingSuit;
     }
 
-    // 3. Ordina le carte per forza (dal più scarso al più forte)
+    // Ordina per forza, per poter scegliere scientemente
     const powerOrder = ['4', '5', '6', '7', 'Donna', 'Cavallo', 'Re', 'Asso', '2', '3'];
-    validCards.sort((a, b) => {
-      const valA = a.label || a.value;
-      const valB = b.label || b.value;
-      return powerOrder.indexOf(valA) - powerOrder.indexOf(valB);
-    });
+    const getPwr = (c) => powerOrder.indexOf(c.label || c.value);
+    validCards.sort((a, b) => getPwr(a) - getPwr(b));
 
     let chosenCard;
 
     if (tableCards.length === 0) {
-      // Primo a giocare: butta la carta più debole
+      // Primo a giocare: lancia la carta più debole per non rischiare
       chosenCard = validCards[0];
-      console.log(`🤖 Bot gioca come primo: scelgo la più debole (${chosenCard.label} di ${chosenCard.suit})`);
     } else {
-      // Cerca chi sta vincendo
       let currentWinningCard = tableCards[0].card;
       tableCards.forEach(play => {
-        const playVal = play.card.label || play.card.value;
-        const winVal = currentWinningCard.label || currentWinningCard.value;
-        if (play.card.suit === leadSuit && powerOrder.indexOf(playVal) > powerOrder.indexOf(winVal)) {
+        if (play.card.suit === leadSuit && getPwr(play.card) > getPwr(currentWinningCard)) {
           currentWinningCard = play.card;
         }
       });
 
-      const winVal = currentWinningCard.label || currentWinningCard.value;
-      
-      const canWinCards = validCards.filter(c => {
-        const cVal = c.label || c.value;
-        return c.suit === leadSuit && powerOrder.indexOf(cVal) > powerOrder.indexOf(winVal);
-      });
+      // Divide le carte tra quelle che vincerebbero la presa e quelle che la perderebbero
+      const winningCards = validCards.filter(c => c.suit === leadSuit && getPwr(c) > getPwr(currentWinningCard));
+      const losingCards = validCards.filter(c => c.suit !== leadSuit || getPwr(c) < getPwr(currentWinningCard));
 
-      const hasPoints = tableCards.some(play => {
-        const pVal = play.card.label || play.card.value;
-        return powerOrder.indexOf(pVal) >= 4; // Da Donna a 3
-      });
+      const pointsOnTable = tableCards.reduce((acc, play) => acc + (play.card.points || 0), 0);
+      const needsTrick = (botData.validTricks || 0) === 0;
 
-      if (canWinCards.length > 0 && hasPoints) {
-        chosenCard = canWinCards[0];
-        console.log(`🤖 C'è bottino! Supero e prendo con ${chosenCard.label} di ${chosenCard.suit}`);
+      if (pointsOnTable > 0) {
+        // C'È BOTTINO A TERRA! Pericolo!
+        if (needsTrick && pointsOnTable <= 3 && winningCards.length > 0) {
+          // Ha zero prese, il bottino è piccolo: tenta di uscire franco in sicurezza!
+          chosenCard = winningCards[0]; // Vince con la vincente più bassa possibile
+        } else if (losingCards.length > 0) {
+          // Fugge! Si sbarazza della carta perdente PIÙ ALTA in suo possesso
+          chosenCard = losingCards[losingCards.length - 1];
+        } else {
+          // È costretto a prendere la presa: scarta la sua carta vincente PIÙ ALTA per levarsela
+          chosenCard = winningCards[winningCards.length - 1];
+        }
       } else {
-        chosenCard = validCards[0];
-        console.log(`🤖 Niente bottino o non posso vincere. Sacrifico ${chosenCard.label} di ${chosenCard.suit}`);
+        // NON CI SONO PUNTI A TERRA (es. solo 4, 5, 6)
+        if (losingCards.length > 0) {
+          // Ottima occasione per sbarazzarsi delle carte alte senza prendere punti
+          chosenCard = losingCards[losingCards.length - 1];
+        } else {
+          // Costretto a vincere il liscio: scarta la carta alta
+          chosenCard = winningCards[winningCards.length - 1];
+        }
       }
     }
 
-    // 4. Esegue la mossa
     await playCard(roomId, botId, chosenCard, roomData);
     
   } catch (error) {
-    console.error("❌ Il bot è andato in crash durante il turno:", error);
+    console.error("❌ Errore bot:", error);
   }
 }
 
@@ -317,38 +319,65 @@ export async function resolveTrick(roomId, roomData) {
 }
 
 // 9. Calcola i risultati della mano e assegna le singhe
+// 9. Calcola i risultati della mano e assegna le singhe
 export async function processHandOver(roomId, roomData) {
   if (roomData.status !== 'hand_over') return;
 
   const playerIds = Object.keys(roomData.players);
   const singhe = { ...roomData.singhe };
   
-  // Trova il punteggio più basso di questa mano
-  let minPoints = Math.min(...playerIds.map(id => roomData.players[id].points || 0));
+  // Trova il punteggio PIÙ ALTO
+  let maxPoints = Math.max(...playerIds.map(id => roomData.players[id].points || 0));
+  let lastLoser = null;
 
-  let matchOver = false;
-  let losers = [];
-  let lastLoser = null; // Ci serve per capire chi farà il mazziere/inizierà il prossimo turno
+  // CONTROLLO CAPPOTTO: Qualcuno ha preso tutti i 35 punti?
+  const isCappotto = maxPoints === 35;
 
   playerIds.forEach(id => {
     const p = roomData.players[id];
-    
-    // REGOLA DELLA SINGA: Prende la singa chi fa il punteggio più basso 
-    // OPPURE chi non è "uscito franco" (nessuna presa da almeno 1 punto)
-    if (p.points === minPoints || (p.validTricks || 0) === 0) {
-      singhe[id] = (singhe[id] || 0) + 1;
-      lastLoser = id; // Segniamo chi ha perso per il cambio mazziere
+    let getsSinga = false;
+
+    if (isCappotto) {
+      // REGOLA CAPPOTTO: Chi NON ha fatto 35 prende la singa!
+      if (p.points < 35) getsSinga = true;
+    } else {
+      // REGOLA NORMALE: Prende la singa chi ha il punteggio più alto OPPURE chi ha 0 prese
+      if (p.points === maxPoints || (p.validTricks || 0) === 0) {
+        getsSinga = true;
+      }
     }
 
-    // CONDIZIONE FINE PARTITA (5 Singhe)
-    if (singhe[id] >= 5) {
-      // Qui si incastra l'eccezione "esce franco": se ha 5 singhe ma in questa esatta
-      // mano ha fatto punti validi, si potrebbe salvare (dipende dalla variante esatta che giochi).
-      // Per ora applichiamo la regola base: 5 = Fine partita.
-      matchOver = true;
-      losers.push(p.name);
+    if (getsSinga) {
+      singhe[id] = (singhe[id] || 0) + 1;
+      lastLoser = id; // Il mazziere sarà l'ultimo che ha preso la singa
     }
   });
+
+  // --- LOGICA FINE PARTITA (2 a 5, oppure 1 a 10) ---
+  let matchOver = false;
+  let losers = [];
+  let gameOverReason = "";
+
+  let count5 = 0;
+  let player10 = null;
+
+  playerIds.forEach(id => {
+    const s = singhe[id] || 0;
+    if (s >= 10) player10 = roomData.players[id].name;
+    if (s >= 5) count5++;
+  });
+
+  if (player10) {
+    matchOver = true;
+    losers = [player10]; 
+    gameOverReason = "Sconfitta per 10 Singhe!";
+  } else if (count5 >= 2) {
+    matchOver = true;
+    playerIds.forEach(id => {
+      if ((singhe[id] || 0) >= 5) losers.push(roomData.players[id].name);
+    });
+    gameOverReason = "Due giocatori hanno raggiunto 5 Singhe!";
+  }
 
   const updates = {};
   updates[`rooms/${roomId}/singhe`] = singhe;
@@ -357,8 +386,9 @@ export async function processHandOver(roomId, roomData) {
   if (matchOver) {
     updates[`rooms/${roomId}/status`] = 'game_over';
     updates[`rooms/${roomId}/losers`] = losers;
+    updates[`rooms/${roomId}/gameOverReason`] = gameOverReason;
   } else {
-    updates[`rooms/${roomId}/status`] = 'between_hands'; // Pausa per mostrare i punteggi
+    updates[`rooms/${roomId}/status`] = 'between_hands';
   }
   
   await update(ref(db), updates);

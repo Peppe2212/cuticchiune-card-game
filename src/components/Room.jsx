@@ -271,10 +271,13 @@ import {
                     });
                 }
 
+                // Controlla se hai già una carta a terra in questo esatto turno
+                const hasPlayedThisTurn = roomData.tableCards?.some(c => c.playerId === playerId);
+                const canPlay = isMyTurn && !hasPlayedThisTurn;
                 return displayHand.map((card, idx) => (
                     <div 
                     key={idx} 
-                    onClick={() => isMyTurn ? playCard(roomId, playerId, card, roomData) : null}
+                    onClick={() => canPlay ? playCard(roomId, playerId, card, roomData) : null}
                     className={`bg-white rounded p-2 text-center border-2 border-gray-300 w-20 h-28 flex flex-col justify-between select-none
                     ${isMyTurn 
                         ? 'cursor-pointer hover:-translate-y-4 hover:border-yellow-500 hover:shadow-xl transition-all' 
@@ -343,7 +346,7 @@ import {
                     <div key={idx} className="bg-green-700 p-4 rounded flex justify-between items-center text-white text-lg">
                     <span className="font-bold">{p.name}</span>
                     <div className="flex gap-4">
-                        <span>Prese: {p.points} pt</span>
+                        <span>Punti: {p.points} pt</span>
                         <span className="text-red-400 font-bold">Singhe: {mySinghe}/5</span>
                     </div>
                     </div>
@@ -406,14 +409,15 @@ import {
             )}
         </div>
 
-        {players.length === 4 && (!roomData || roomData.status === 'waiting') && (
+            {/* PULSANTE PER AVVIARE LA PARTITA (Visibile solo al creatore della stanza) */}
+            {players.length === 4 && (!roomData || roomData.status === 'waiting') && players[0].id === playerId && (
             <button 
-            onClick={() => startGame(roomId, roomData)}
-            className="bg-red-600 hover:bg-red-500 text-white font-bold py-4 px-12 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105 animate-bounce"
+                onClick={() => startGame(roomId, roomData)}
+                className="bg-red-600 hover:bg-red-500 text-white font-bold py-4 px-12 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105 animate-bounce"
             >
-            Diamo le carte!
+                Diamo le carte!
             </button>
-        )}
+            )}
         </div>
     );
 }
