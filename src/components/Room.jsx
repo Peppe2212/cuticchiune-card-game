@@ -151,41 +151,47 @@ export default function Room() {
         return () => unsubscribe();
     }, [roomId, navigate, playerId, isCreating]);
 
+
+   // 1. Il Bot gioca la sua carta
     useEffect(() => {
         const turnId = roomData?.turnIndex;
         const turnName = roomData?.players?.[turnId]?.name;
-        if (roomData?.status === 'playing' && turnName && turnName.includes('Bot')) {
-        const timer = setTimeout(() => playBotTurn(roomId).catch(console.error), 1200);
-        return () => clearTimeout(timer);
+        
+        // 🔴 1. Usiamo startsWith('Bot ') per essere precisissimi ed evitare errori con nomi simili
+        if (roomData?.status === 'playing' && turnName?.startsWith('Bot ') && isRoomHost) {
+            const timer = setTimeout(() => playBotTurn(roomId).catch(console.error), 1200);
+            return () => clearTimeout(timer);
         }
-    }, [roomData?.turnIndex, roomData?.status, roomId]);
-
+        
+    // 🔴 2. LA MAGIA È QUI: Abbiamo aggiunto 'turnName' alle dipendenze!
+    // Se tu subentri durante questo secondo e due, il nome cambia, React se ne accorge, 
+    // lancia il clearTimeout distruggendo il timer del Bot e ti lascia il controllo totale.
+    }, [roomData?.turnIndex, roomData?.status, roomId, isRoomHost, turnName]);
+    
+    // 2. Risoluzione della presa a terra
     useEffect(() => {
-        if (roomData?.status === 'resolving_trick') {
-        const humanIds = Object.keys(roomData.players).filter(id => !roomData.players[id].name.includes('Bot'));
-        if (humanIds[0] === playerId) {
+        if (roomData?.status === 'resolving_trick' && isRoomHost) {
             const timer = setTimeout(() => resolveTrick(roomId, roomData), 2500);
             return () => clearTimeout(timer);
         }
-        }
-    }, [roomData, roomId, playerId]);
+    }, [roomData?.status, roomId, isRoomHost]); // 🔴 Rimosso il bug di "humanIds[0]"
 
+    // 3. Calcolo delle singhe a fine mano
     useEffect(() => {
-        if (roomData?.status === 'hand_over') {
-        const humanIds = Object.keys(roomData.players).filter(id => !roomData.players[id].name.includes('Bot'));
-        if (humanIds[0] === playerId) processHandOver(roomId, roomData);
+        if (roomData?.status === 'hand_over' && isRoomHost) {
+            // Un leggerissimo delay per essere sicuri che tutti abbiano visto l'ultima presa
+            const timer = setTimeout(() => processHandOver(roomId, roomData), 1000);
+            return () => clearTimeout(timer);
         }
-    }, [roomData, roomId, playerId]);
+    }, [roomData?.status, roomId, isRoomHost]);
 
+    // 4. Distribuzione automatica tra una mano e l'altra
     useEffect(() => {
-        if (roomData?.status === 'between_hands') {
-        const humanIds = Object.keys(roomData.players).filter(id => !roomData.players[id].name.includes('Bot'));
-        if (humanIds[0] === playerId) {
+        if (roomData?.status === 'between_hands' && isRoomHost) {
             const timer = setTimeout(() => startNextHand(roomId, roomData), 12000);
             return () => clearTimeout(timer);
         }
-        }
-    }, [roomData, roomId, playerId]);
+    }, [roomData?.status, roomId, isRoomHost]);
 
 
    // ESECUZIONE AUDIO
