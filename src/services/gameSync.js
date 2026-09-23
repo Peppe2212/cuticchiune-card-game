@@ -1,4 +1,4 @@
-import { ref, get, set, update, onValue, push } from "firebase/database";
+import { ref, get, set, update, onValue, push, remove } from "firebase/database";
 import { db } from "./firebase";
 import { createDeck, shuffleDeck, dealCards } from '../logic/deck';
 import { findFiveOfCoinsHolder, isValidMove, determineTrickWinner, calculateTrickPoints } from '../logic/rules';
@@ -326,8 +326,9 @@ export async function resolveTrick(roomId, roomData) {
 
   // 🔴 PREPARA L'AGGIORNAMENTO (Ora salva la presa!)
   const updates = {
+    [`rooms/${roomId}/lastTrick`]: roomData.tableCards,
     [`rooms/${roomId}/tableCards`]: null, // Pulisce il tavolo
-    [`rooms/${roomId}/lastTrick`]: tableCards, // <-- FOTOGRAFA L'ULTIMA PRESA QUI
+    [`rooms/${roomId}/lastTrick`]: tableCards, //ultima presa
     [`rooms/${roomId}/players/${winnerId}/points`]: newPoints,
     [`rooms/${roomId}/players/${winnerId}/validTricks`]: newValidTricks,
     [`rooms/${roomId}/turnIndex`]: winnerId, 
@@ -513,4 +514,37 @@ export async function sendMessage(roomId, playerName, text) {
     text: text.trim(),
     timestamp: Date.now()
   });
+}
+
+
+// 15. Disconnessione morbida (Permette la riconnessione)
+export async function leaveAndCleanRoom(roomId, playerId) {
+    const roomRef = ref(db, `rooms/${roomId}`);
+    const snapshot = await get(roomRef);
+    if (!snapshot.exists()) return;
+
+    const roomData = snapshot.val();
+    const players = roomData.players || {};
+
+    if (!roomData.status || roomData.status === 'waiting') {
+        // Se siete solo in LOBBY e non state giocando, libera il posto
+        await remove(ref(db, `rooms/${roomId}/players/${playerId}`));
+    } else if (roomData.status !== 'game_over') {
+        // SE LA PARTITA E' IN CORSO: Non eliminare nulla! 
+        // Trasforma solo in Bot per far continuare gli altri (o mantenere in vita la stanza)
+        const currentName = players[playerId]?.name || "Anonimo";
+        if (!currentName.includes('Bot')) {
+            await update(ref(db, `rooms/${roomId}/players/${playerId}`), {
+                name: `Bot ${currentName}`
+            });
+        }
+    }
+}
+
+// 16. Subentro (Takeover) dello spettatore
+export async function takeoverBot(roomId, botId, newPlayerName) {
+    // Sostituisce il nome "Bot..." col nome vero dell'umano
+    await update(ref(db, `rooms/${roomId}/players/${botId}`), {
+        name: newPlayerName
+    });
 }

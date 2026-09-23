@@ -4,7 +4,7 @@ import {
     joinOrCreateRoom, sitAtTable, subscribeToRoom, startGame, 
     fillTableWithDummies, playBotTurn, resolveTrick, 
     processHandOver, startNextHand, resetGame, acknowledgePenalty,
-    replacePlayerWithBot 
+    replacePlayerWithBot, leaveAndCleanRoom, takeoverBot
 } from '../services/gameSync';
 
 import Player from './Player';
@@ -68,6 +68,31 @@ export default function Room() {
         ];
         return randomMsg[Math.floor(Math.random() * randomMsg.length)];
     }, [roomData?.status, roomData?.singhe, playerId, humanIds]);
+
+    const handleLeave = async () => {
+        const isPlaying = activeStates.includes(roomData?.status) && roomData?.status !== 'game_over';
+        
+        if (isPlaying) {
+            if (!window.confirm("La partita è in corso! Se esci verrai sostituito da un Bot. Confermi?")) return;
+        }
+
+        // Se l'utente è effettivamente seduto, puliamo il database
+        if (hasJoined) {
+            await leaveAndCleanRoom(roomId, playerId);
+        }
+        
+        navigate('/');
+    };
+
+    const isSpectator = hasJoined && roomData?.players && !roomData.players[playerId];
+    const availableBots = Object.entries(roomData?.players || {}).filter(([id, p]) => p.name.includes('Bot'));
+
+    const handleTakeover = async (botId) => {
+        await takeoverBot(roomId, botId, playerName);
+        // Sovrascrive l'ID locale e ricarica la pagina per prendere il posto
+        localStorage.setItem(`cuticchiune_${roomId}`, botId);
+        window.location.reload(); 
+    };
 
     // ==========================================
     // MOTORI LOGICI E RICONNESSIONE AUTOMATICA
@@ -186,29 +211,42 @@ export default function Room() {
     // RENDER DELLE SCHERMATE E BLOCCO INTRUSI
     // ==========================================
 
-    // BLOCCO INTRUSI: Se non sono seduto e la partita è già iniziata, vengo cacciato!
-    if (!hasJoined && roomData && roomData.status !== 'waiting') {
-        navigate('/?error=started');
-        return null;
-    }
+    
 
     if (!hasJoined) {
-        return (
-        <div className="min-h-screen bg-green-900 flex flex-col items-center justify-center p-4 relative">
-            {/* Tasto Indietro Assoluto */}
-            <button 
-            onClick={() => navigate('/')}
-            className="absolute top-6 left-6 bg-green-800 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg border border-green-600 shadow-lg flex items-center gap-2 transition-colors"
-            >
-            🔙 Torna alla Home
-            </button>
+        // Calcola se il tavolo è chiuso o iniziato
+        const isTableFull = Object.keys(roomData?.players || {}).length >= 4;
+        const isGameStarted = roomData?.status && roomData.status !== 'waiting';
+        const mustBeSpectator = isTableFull || isGameStarted;
 
-            <form onSubmit={handleJoin} className="bg-green-800 p-8 rounded-xl shadow-xl max-w-sm w-full text-center border-2 border-green-700 mt-12">
-            <h2 className="text-2xl text-white font-bold mb-6">Tavolo {roomId}</h2>
-            <input type="text" placeholder="Il tuo nome" value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="w-full p-3 rounded mb-4 text-center text-lg focus:outline-none focus:ring-2 focus:ring-yellow-500" maxLength={12} required />
-            <button type="submit" className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-4 rounded transition-colors">Siediti al Tavolo</button>
-            </form>
-        </div>
+        const handleJoinSubmit = async (e) => {
+            e.preventDefault();
+            if (!playerName.trim()) return;
+            
+            if (mustBeSpectator) {
+                // Entra in incognito locale: niente scritture sul database!
+                setHasJoined(true);
+            } else {
+                const success = await sitAtTable(roomId, playerId, playerName);
+                if (success) setHasJoined(true);
+            }
+        };
+
+        return (
+            <div className="min-h-screen bg-green-900 flex flex-col items-center justify-center p-4 relative">
+                <button onClick={() => navigate('/')} className="absolute top-6 left-6 bg-green-800 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg border border-green-600 shadow-lg flex items-center gap-2 transition-colors">
+                    🔙 Torna alla Home
+                </button>
+
+                <form onSubmit={handleJoinSubmit} className="bg-green-800 p-8 rounded-xl shadow-xl max-w-sm w-full text-center border-2 border-green-700 mt-12">
+                    <h2 className="text-2xl text-white font-bold mb-6">Tavolo {roomId}</h2>
+                    <input type="text" placeholder="Il tuo nome" value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="w-full p-3 rounded mb-4 text-center text-lg focus:outline-none focus:ring-2 focus:ring-yellow-500" maxLength={12} required />
+                    
+                    <button type="submit" className={`w-full font-bold py-3 px-4 rounded transition-colors text-white shadow-md ${mustBeSpectator ? 'bg-blue-600 hover:bg-blue-500' : 'bg-yellow-600 hover:bg-yellow-500'}`}>
+                        {mustBeSpectator ? "👀 Entra come Spettatore" : "Siediti al Tavolo"}
+                    </button>
+                </form>
+            </div>
         );
     }
 
@@ -259,9 +297,56 @@ export default function Room() {
                     onReplaceWithBot={(targetId, currentName) => replacePlayerWithBot(roomId, targetId, currentName)}
                 />
                 
-                {/* Nascondiamo la mano del giocatore solo a fine partita o tra una mano e l'altra */}
-                {!['between_hands', 'game_over'].includes(roomData.status) && (
-                    <Player roomData={roomData} playerId={playerId} roomId={roomId} />
+                {/* ZONA INFERIORE: SPETTATORE O GIOCATORE UMANO */}
+                {isSpectator ? (
+                    <div className="absolute bottom-0 left-0 w-full bg-green-950 p-4 border-t-4 border-blue-500 rounded-t-3xl z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] flex flex-col items-center">
+                        <div className="w-full flex justify-between items-center mb-3 px-2">
+                            <h3 className="text-blue-400 font-black tracking-widest uppercase flex items-center gap-2">
+                                <span className="animate-pulse">🔴</span> In Diretta
+                            </h3>
+                            <span className="text-gray-300 text-sm font-bold bg-green-900 px-3 py-1 rounded-full border border-green-700">Modalità Spettatore</span>
+                        </div>
+
+                        {/* Visualizzatore Ultima Presa */}
+                        <div className="w-full max-w-md bg-green-900/50 rounded-xl p-3 border border-green-800 mb-4 min-h-[120px] flex flex-col items-center justify-center">
+                            <span className="text-green-500 text-xs font-bold uppercase mb-2">Ultima Presa</span>
+                            {roomData?.lastTrick ? (
+                                <div className="flex justify-center gap-2">
+                                    {roomData.lastTrick.map((card, i) => (
+                                        <div key={i} className="w-12 h-20 sm:w-16 sm:h-24 bg-white rounded shadow-md border-2 border-gray-400 flex flex-col items-center justify-center text-xs sm:text-sm font-bold text-black text-center leading-tight">
+                                            {card.label} <br/> {card.suit.substring(0,3)}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-green-700 italic font-medium">Le carte della presa appariranno qui...</div>
+                            )}
+                        </div>
+
+                        {/* Bottoni di Subentro Dinamici */}
+                        {availableBots.length > 0 ? (
+                            <div className="flex flex-wrap gap-2 justify-center w-full">
+                                {availableBots.map(([botId, botData]) => (
+                                    <button 
+                                        key={botId} 
+                                        onClick={() => handleTakeover(botId)} 
+                                        className="bg-blue-600 hover:bg-blue-500 text-white font-black py-3 px-6 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.6)] border-2 border-blue-400 transition-transform transform hover:scale-105 animate-bounce flex items-center gap-2"
+                                    >
+                                        🔄 Subentra a {botData.name.replace('Bot ', '')}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center text-gray-400 text-sm italic bg-black/40 px-6 py-2 rounded-full">
+                                Nessun posto libero. Attendi che qualcuno abbandoni.
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    /* ZONA GIOCATORE STANDARD */
+                    !['between_hands', 'game_over'].includes(roomData.status) && (
+                        <Player roomData={roomData} playerId={playerId} roomId={roomId} />
+                    )
                 )}
 
                 {/* OVERLAY: AZIONE ILLEGALE (Penalità Compatta) */}
@@ -412,9 +497,8 @@ export default function Room() {
                 )}
 
                 {/* 🔴 INSERISCI LA CHAT QUI (Per averla durante la partita) */}
-                    <Chat roomId={roomId} playerName={myName || 'Anonimo'} variant="game" />            
-
-                
+                <Chat roomId={roomId} playerName={isSpectator ? `[👁️] ${playerName}` : (myName || 'Anonimo')} variant="game" />
+                                
             </div>
         );
         
@@ -531,7 +615,7 @@ export default function Room() {
                 )
             )}
             {/* 🔴 2. INCOLLA LA CHAT DELLA LOBBY QUI */}
-            <Chat roomId={roomId} playerName={myName || 'Anonimo'} variant="lobby" />
+            <Chat roomId={roomId} playerName={isSpectator ? `[👁️] ${playerName}` : (myName || 'Anonimo')} variant="lobby" />
         </div>
 
     );
