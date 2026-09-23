@@ -36,8 +36,7 @@ export default function Room() {
 
     const isGameOver = roomData?.status === 'game_over';
 
-    const activeStates = ['playing', 'resolving_trick', 'suit_penalty', 'between_hands', 'game_over'];
-    
+    const activeStates = ['playing', 'resolving_trick', 'suit_penalty', 'hand_over', 'between_hands', 'game_over'];    
     /// GERARCHIA HOST (Per evitare colpi di stato)
     const allPlayerIds = Object.keys(roomData?.players || {});
     
@@ -114,7 +113,7 @@ export default function Room() {
         navigate('/');
     };
 
-    
+
     // ==========================================
     // MOTORI LOGICI E RICONNESSIONE AUTOMATICA
     // ==========================================
@@ -219,6 +218,7 @@ export default function Room() {
         };
     }, [isGameOver, isTenSinghe]);
 
+/* NOT USED
     const handleJoin = async (e) => {
         e.preventDefault();
         if (playerName.trim()) {
@@ -226,7 +226,7 @@ export default function Room() {
         if (success) setHasJoined(true);
         }
     };
-
+*/
 
     // ==========================================
     // RENDER DELLE SCHERMATE E BLOCCO INTRUSI
@@ -243,9 +243,20 @@ export default function Room() {
         const handleJoinSubmit = async (e) => {
             e.preventDefault();
             if (!playerName.trim()) return;
+
+            // 🔴 AUTO-SUBENTRO: Se ci sono bot, non farti fare lo spettatore, prendi subito il loro posto!
+            const availableBots = Object.entries(roomData?.players || {}).filter(([id, p]) => p.name.includes('Bot'));
             
+            if (availableBots.length > 0) {
+                const botId = availableBots[0][0];
+                await takeoverBot(roomId, botId, playerName);
+                localStorage.setItem(`cuticchiune_${roomId}`, botId);
+                window.location.reload(); 
+                return; // Ferma l'esecuzione qui
+            }
+            
+            // Logica normale se non ci sono bot
             if (mustBeSpectator) {
-                // Entra in incognito locale: niente scritture sul database!
                 setHasJoined(true);
             } else {
                 const success = await sitAtTable(roomId, playerId, playerName);
@@ -315,60 +326,61 @@ export default function Room() {
                     roomData={roomData} 
                     playerId={playerId} 
                     isGameOver={isGameOver} 
+                    isSpectator={isSpectator} // 🔴 Passiamo l'informazione al tavolo!
                     onReplaceWithBot={(targetId, currentName) => replacePlayerWithBot(roomId, targetId, currentName)}
                 />
                 
-                {/* ZONA INFERIORE: SPETTATORE O GIOCATORE UMANO */}
-                {isSpectator ? (
-                    <div className="w-full mt-auto relative bg-green-950 p-4 border-t-4 border-blue-500 rounded-t-3xl z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] flex flex-col items-center">
-                        
-                        <div className="w-full flex justify-between items-center mb-3 px-2">
-                            <h3 className="text-blue-400 font-black tracking-widest uppercase flex items-center gap-2">
+                {/* ZONA GIOCATORE: Mostrata solo se UMANO e la partita è in corso */}
+                {!['between_hands', 'game_over'].includes(roomData.status) && !isSpectator && (
+                    <Player roomData={roomData} playerId={playerId} roomId={roomId} />
+                )}
+
+                {/* ZONA INFERIORE: Mostrata solo se SPETTATORE */}
+                {isSpectator && (
+                    // 🔴 Reso super-compatto: padding ridotti, testi rimpiccioliti
+                    <div className="w-full mt-auto relative bg-green-950 p-2 sm:p-3 border-t-4 border-blue-500 rounded-t-2xl z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] flex flex-col items-center">
+                        <div className="w-full flex justify-between items-center mb-1.5 px-2">
+                            <h3 className="text-blue-400 font-black text-xs sm:text-sm tracking-widest uppercase flex items-center gap-1">
                                 <span className="animate-pulse">🔴</span> In Diretta
                             </h3>
-                            <span className="text-gray-300 text-sm font-bold bg-green-900 px-3 py-1 rounded-full border border-green-700">Modalità Spettatore</span>
+                            <span className="text-gray-300 text-[10px] sm:text-xs font-bold bg-green-900 px-2 py-0.5 rounded-full border border-green-700">Spettatore</span>
                         </div>
 
-                        {/* Visualizzatore Ultima Presa */}
-                        <div className="w-full max-w-md bg-green-900/50 rounded-xl p-3 border border-green-800 mb-4 min-h-[120px] flex flex-col items-center justify-center">
-                            <span className="text-green-500 text-xs font-bold uppercase mb-2">Ultima Presa</span>
+                        {/* Visualizzatore Ultima Presa (Carte più piccole) */}
+                        <div className="w-full max-w-sm bg-green-900/50 rounded-lg p-2 border border-green-800 mb-2 flex flex-col items-center justify-center">
+                            <span className="text-green-500 text-[10px] font-bold uppercase mb-1">Ultima Presa</span>
                             {roomData?.lastTrick ? (
-                                <div className="flex justify-center gap-2">
+                                <div className="flex justify-center gap-1.5">
                                     {roomData.lastTrick.map((card, i) => (
-                                        <div key={i} className="w-12 h-20 sm:w-16 sm:h-24 bg-white rounded shadow-md border-2 border-gray-400 flex flex-col items-center justify-center text-xs sm:text-sm font-bold text-black text-center leading-tight">
+                                        <div key={i} className="w-10 h-16 sm:w-12 sm:h-20 bg-white rounded shadow-sm border border-gray-400 flex flex-col items-center justify-center text-[10px] sm:text-xs font-bold text-black text-center leading-tight">
                                             {card.label} <br/> {card.suit.substring(0,3)}
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="text-green-700 italic font-medium">Le carte della presa appariranno qui...</div>
+                                <div className="text-green-700 text-[10px] italic font-medium">In attesa...</div>
                             )}
                         </div>
 
-                        {/* Bottoni di Subentro Dinamici */}
+                        {/* Bottoni di Subentro Dinamici (Dimensioni ridotte) */}
                         {availableBots.length > 0 ? (
                             <div className="flex flex-wrap gap-2 justify-center w-full">
                                 {availableBots.map(([botId, botData]) => (
                                     <button 
                                         key={botId} 
                                         onClick={() => handleTakeover(botId)} 
-                                        className="bg-blue-600 hover:bg-blue-500 text-white font-black py-3 px-6 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.6)] border-2 border-blue-400 transition-transform transform hover:scale-105 animate-bounce flex items-center gap-2"
+                                        className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm py-2 px-4 rounded-full shadow-[0_0_10px_rgba(37,99,235,0.6)] border border-blue-400 transition-transform transform hover:scale-105 animate-bounce flex items-center gap-1.5"
                                     >
                                         🔄 Subentra a {botData.name.replace('Bot ', '')}
                                     </button>
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center text-gray-400 text-sm italic bg-black/40 px-6 py-2 rounded-full">
-                                Nessun posto libero. Attendi che qualcuno abbandoni.
+                            <div className="text-center text-gray-400 text-[10px] italic bg-black/40 px-4 py-1 rounded-full">
+                                Nessun posto libero. Attendi un abbandono.
                             </div>
                         )}
                     </div>
-                ) : (
-                    /* ZONA GIOCATORE STANDARD */
-                    !['between_hands', 'game_over'].includes(roomData.status) && (
-                        <Player roomData={roomData} playerId={playerId} roomId={roomId} />
-                    )
                 )}
 
                 {/* OVERLAY: AZIONE ILLEGALE (Penalità Compatta) */}

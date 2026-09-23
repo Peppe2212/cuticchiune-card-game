@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Card from './Card';
 
-export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot }) {
+export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot, isSpectator }) {
     const [showLastTrick, setShowLastTrick] = useState(false);
 
     const playerIds = Object.keys(roomData.players || {});
@@ -143,23 +143,47 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
             </div>
         </div>
 
-        {/* WIDGET ULTIMA PRESA (Compatto e fluttuante) */}
-        {showLastTrick && (
-            <div className="absolute top-16 sm:top-20 right-2 sm:right-8 bg-black/90 p-2 sm:p-4 rounded-xl border-2 border-yellow-600 z-[70] shadow-2xl backdrop-blur-md animate-fade-in">
-                <div className="flex justify-between items-center mb-2 sm:mb-3 gap-4">
-                    <h2 className="text-xs sm:text-sm text-yellow-400 font-bold uppercase tracking-wider">Ultima Presa</h2>
-                    <button onClick={() => setShowLastTrick(false)} className="text-white hover:text-red-500 font-black text-lg sm:text-xl leading-none">&times;</button>
-                </div>
-                <div className="flex gap-1 sm:gap-2">
-                    {/* Aggiunto il '?' per prevenire il crash in caso di disconnessione */}
-                    {roomData.lastTrick?.map((play, idx) => (
-                    <div key={idx} className="flex flex-col items-center">
-                        <span className="text-gray-300 text-[8px] sm:text-[10px] mb-1 font-bold truncate max-w-[40px]">{roomData.players[play.playerId]?.name}</span>
-                        <Card card={play.card} disabled={true} customClasses="w-10 h-14 sm:w-12 sm:h-16" />
+        {/* ========================================== */}
+        {/* SISTEMA ULTIMA PRESA (Visibile solo ai Giocatori) */}
+        {/* ========================================== */}
+        {!isSpectator && roomData?.lastTrick && (
+            <>
+                {/* 1. Pulsante Fluttuante */}
+                {!showLastTrick && (
+                    <button 
+                        onClick={() => setShowLastTrick(true)}
+                        className="absolute top-4 right-2 sm:right-8 bg-black/60 hover:bg-black/80 text-white p-2 sm:px-3 sm:py-2 rounded-full border border-gray-500 z-[60] shadow-lg transition-colors text-xs sm:text-sm flex items-center gap-2"
+                    >
+                        👀 <span className="hidden sm:inline">Ultima Presa</span>
+                    </button>
+                )}
+
+                {/* 2. WIDGET ULTIMA PRESA (Compatto e fluttuante) */}
+                {showLastTrick && (
+                    <div className="absolute top-4 sm:top-6 right-2 sm:right-8 bg-black/90 p-2 sm:p-4 rounded-xl border-2 border-yellow-600 z-[70] shadow-2xl backdrop-blur-md animate-[slideIn_0.2s_ease-out]">
+                        <div className="flex justify-between items-center mb-2 sm:mb-3 gap-4">
+                            <h2 className="text-xs sm:text-sm text-yellow-400 font-bold uppercase tracking-wider">Ultima Presa</h2>
+                            <button 
+                                onClick={() => setShowLastTrick(false)} 
+                                className="text-white hover:text-red-500 font-black text-lg sm:text-xl leading-none transition-colors"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <div className="flex gap-1 sm:gap-2">
+                            {/* Mappa delle carte con il '?' per prevenire crash */}
+                            {roomData.lastTrick?.map((play, idx) => (
+                            <div key={idx} className="flex flex-col items-center">
+                                <span className="text-gray-300 text-[8px] sm:text-[10px] mb-1 font-bold truncate max-w-[40px]">
+                                    {roomData.players[play.playerId]?.name}
+                                </span>
+                                <Card card={play.card} disabled={true} customClasses="w-10 h-14 sm:w-12 sm:h-16" />
+                            </div>
+                            ))}
+                        </div>
                     </div>
-                    ))}
-                </div>
-            </div>
+                )}
+            </>
         )}
 
         {/* CENTRO DEL TAVOLO (Bordi, margini e arrotondamenti adattivi) */}
