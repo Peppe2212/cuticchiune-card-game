@@ -472,7 +472,7 @@ export default function Room() {
                 </div>
                 
                 {/* Modalità Single Player (Visibile solo all'host se mancano giocatori) */}
-                {players.length > 0 && players.length < 4 && players[0].id === playerId && (
+                {players.length > 0 && players.length < 4 && isRoomHost && (
                     <button 
                         onClick={() => fillTableWithDummies(roomId)} 
                         className="mt-12 bg-blue-700 hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-full text-xl shadow-xl transition-transform hover:scale-105 flex items-center gap-3 mx-auto border-2 border-blue-400"
@@ -484,16 +484,22 @@ export default function Room() {
 
             {/* PULSANTE AVVIO PARTITA MULTIPLAYER (Appare solo quando il tavolo è pieno) */}
             {players.length === 4 && (!roomData || roomData.status === 'waiting') && (
-                <button 
-                    onClick={(e) => {
-                        e.currentTarget.disabled = true; 
-                        e.currentTarget.innerText = "Mescolando..."; 
-                        startGame(roomId, roomData);
-                    }}
-                    className="bg-red-600 hover:bg-red-500 text-white font-bold py-4 px-12 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105 animate-bounce disabled:opacity-50 disabled:animate-none disabled:cursor-not-allowed mt-4"
-                >
-                    Diamo le carte!
-                </button>
+                isRoomHost ? (
+                    <button 
+                        onClick={(e) => {
+                            e.currentTarget.disabled = true; 
+                            e.currentTarget.innerText = "Mescolando..."; 
+                            startGame(roomId, roomData);
+                        }}
+                        className="bg-red-600 hover:bg-red-500 text-white font-bold py-4 px-12 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105 animate-bounce disabled:opacity-50 disabled:animate-none disabled:cursor-not-allowed mt-4"
+                    >
+                        🃏 Diamo le carte!
+                    </button>
+                ) : (
+                    <div className="mt-8 bg-gray-800/90 text-yellow-400 font-bold py-4 px-8 rounded-full text-lg sm:text-xl border border-gray-600 animate-pulse shadow-lg text-center">
+                        ⏳ In attesa che l'Host avvii la partita...
+                    </div>
+                )
             )}
         </div>
     );
