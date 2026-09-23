@@ -80,7 +80,7 @@ export function subscribeToRoom(roomId, callback) {
 }
 
 // 4. Avvia la partita: mescola, distribuisce e cerca il 5 di denari
-export async function startGame(roomId, roomData) {
+export async function startGame(roomId, roomData, targetScore = 5) {
   const deck = shuffleDeck(createDeck());
   const playerIds = Object.keys(roomData.players);
   const hands = dealCards(deck, playerIds);
@@ -108,8 +108,9 @@ export async function startGame(roomId, roomData) {
   // Azzera le statistiche per una partita pulita
   const updates = {
     status: 'playing',
+    targetScore: targetScore, // 🔴 SALVA LA MODALITÀ (3 o 5) NEL DATABASE
     players: updatedPlayers,
-    turnIndex: startingPlayerId, // Il turno va a chi ha il 5 di denari
+    turnIndex: startingPlayerId, 
     tableCards: [],
     singhe: {},
     lastLoser: null,
@@ -136,7 +137,7 @@ export async function fillTableWithDummies(roomId) {
     const updates = {};
     for (let i = 1; i <= needed; i++) {
       const dummyId = `dummy_${Math.random().toString(36).substring(2, 9)}`;
-      updates[`rooms/${roomId}/players/${dummyId}`] = { name: `Test Bot ${i}` };
+      updates[`rooms/${roomId}/players/${dummyId}`] = { name: `Bot ${i}` };
     }
     
     // Aggiorna Firebase in un colpo solo
@@ -342,6 +343,7 @@ export async function resolveTrick(roomId, roomData) {
 }
 
 // 9. Calcola i risultati della mano e assegna le singhe
+
 export async function processHandOver(roomId, roomData) {
   if (roomData.status !== 'hand_over') return;
 
@@ -375,34 +377,38 @@ export async function processHandOver(roomId, roomData) {
     }
   });
 
-  // FASE B: CONTROLLO FINE PARTITA RIGIDO
+  // FASE B: CONTROLLO FINE PARTITA DINAMICO
   let matchOver = false;
   let losers = [];
   let gameOverReason = "";
 
-  let count5 = 0;
-  let player10 = null;
+  // 🔴 LEGGE IL TARGET SCORE DAL DB (Default a 5 se è una vecchia partita)
+  const limit = roomData.targetScore || 5;
+  const extremeLimit = limit * 2; // (10 per la partita a 5, 6 per quella a 3)
+
+  let countLimit = 0;
+  let playerExtreme = null;
 
   playerIds.forEach(id => {
     const s = singhe[id] || 0;
-    if (s >= 10) player10 = roomData.players[id].name;
-    if (s >= 5) count5++;
+    if (s >= extremeLimit) playerExtreme = roomData.players[id].name;
+    if (s >= limit) countLimit++;
   });
 
-  console.log(`🔍 [DEBUG] Giocatori con 5+ singhe: ${count5}`);
+  console.log(`🔍 [DEBUG] Giocatori con ${limit}+ singhe: ${countLimit}`);
 
-  if (player10) {
-    // Sconfitta per 10 singhe (Cappotto negativo)
+  if (playerExtreme) {
+    // Sconfitta estrema (Cappotto negativo)
     matchOver = true;
-    losers = [player10]; 
-    gameOverReason = "Sconfitta per 10 Singhe!";
-  } else if (count5 >= 2) {
-    // Sconfitta standard: almeno 2 giocatori sono a 5 singhe
+    losers = [playerExtreme]; 
+    gameOverReason = `Sconfitta per ${extremeLimit} Singhe!`;
+  } else if (countLimit >= 2) {
+    // Sconfitta standard: almeno 2 giocatori hanno raggiunto il limite
     matchOver = true;
     playerIds.forEach(id => {
-      if ((singhe[id] || 0) >= 5) losers.push(roomData.players[id].name);
+      if ((singhe[id] || 0) >= limit) losers.push(roomData.players[id].name);
     });
-    gameOverReason = "Due giocatori hanno raggiunto 5 Singhe!";
+    gameOverReason = `Due giocatori hanno raggiunto ${limit} Singhe!`;
   }
 
   // FASE C: AGGIORNAMENTO DATABASE
@@ -420,6 +426,7 @@ export async function processHandOver(roomId, roomData) {
   
   await update(ref(db), updates);
 }
+
 // 10. Avvia la mano successiva dopo aver mostrato i punteggi
 export async function startNextHand(roomId, roomData) {
   const deck = shuffleDeck(createDeck());

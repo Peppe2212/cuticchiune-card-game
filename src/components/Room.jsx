@@ -21,7 +21,7 @@ export default function Room() {
     const [playerName, setPlayerName] = useState('');
     const [hasJoined, setHasJoined] = useState(false);
     const [roomData, setRoomData] = useState(null);
-
+    const [targetScore, setTargetScore] = useState(5);
     const bandaAudio = useRef(new Audio('/the_king_30sec.m4a'));
 
     const [playerId] = useState(() => {
@@ -47,8 +47,8 @@ export default function Room() {
     // VARIABILI PER GAME OVER E SFOTTI
     const myName = roomData?.players?.[playerId]?.name;
     const amILoser = roomData?.losers?.includes(myName);
-    const isTenSinghe = roomData?.gameOverReason?.includes('10');
-
+    // Controlla se la motivazione contiene "10" (partita normale) o "6" (partita veloce)
+    const isTenSinghe = roomData?.gameOverReason?.includes('10') || roomData?.gameOverReason?.includes('6');
     // GENERATORE MESSAGGI GOLIARDICI (Tra una mano e l'altra)
     const goliardicMessage = useMemo(() => {
         if (roomData?.status !== 'between_hands') return "";
@@ -487,19 +487,43 @@ export default function Room() {
                 )}
             </div>
 
-            {/* PULSANTE AVVIO PARTITA MULTIPLAYER (Appare solo quando il tavolo è pieno) */}
+            {/* PANNELLO AVVIO PARTITA MULTIPLAYER (Appare solo quando il tavolo è pieno) */}
             {players.length === 4 && (!roomData || roomData.status === 'waiting') && (
                 isRoomHost ? (
-                    <button 
-                        onClick={(e) => {
-                            e.currentTarget.disabled = true; 
-                            e.currentTarget.innerText = "Mescolando..."; 
-                            startGame(roomId, roomData);
-                        }}
-                        className="bg-red-600 hover:bg-red-500 text-white font-bold py-4 px-12 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105 animate-bounce disabled:opacity-50 disabled:animate-none disabled:cursor-not-allowed mt-4"
-                    >
-                        🃏 Diamo le carte!
-                    </button>
+                    <div className="mt-8 flex flex-col items-center w-full max-w-md animate-[slideIn_0.3s_ease-out]">
+                        
+                        {/* 🔴 SELETTORE MODALITÀ DI GIOCO */}
+                        <div className="bg-green-900/80 p-3 w-full rounded-2xl border-2 border-green-700 shadow-xl mb-4">
+                            <h3 className="text-white font-bold mb-2 text-center text-sm uppercase tracking-widest text-green-400">Punteggio Vittoria:</h3>
+                            <div className="flex gap-2 justify-center">
+                                <button
+                                    onClick={() => setTargetScore(3)}
+                                    className={`flex-1 py-2 px-2 rounded-xl font-bold transition-all ${targetScore === 3 ? 'bg-yellow-500 text-red-950 border-[3px] border-yellow-300 shadow-[0_0_15px_rgba(234,179,8,0.5)] scale-105' : 'bg-green-800 text-green-300 border border-green-600 hover:bg-green-700'}`}
+                                >
+                                    ⚡ Rapida (a 3)
+                                </button>
+                                <button
+                                    onClick={() => setTargetScore(5)}
+                                    className={`flex-1 py-2 px-2 rounded-xl font-bold transition-all ${targetScore === 5 ? 'bg-yellow-500 text-red-950 border-[3px] border-yellow-300 shadow-[0_0_15px_rgba(234,179,8,0.5)] scale-105' : 'bg-green-800 text-green-300 border border-green-600 hover:bg-green-700'}`}
+                                >
+                                    🐢 Normale (a 5)
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* PULSANTE AVVIO */}
+                        <button 
+                            onClick={(e) => {
+                                e.currentTarget.disabled = true; 
+                                e.currentTarget.innerText = "Mescolando..."; 
+                                // 🔴 Passiamo il targetScore alla funzione di avvio!
+                                startGame(roomId, roomData, targetScore); 
+                            }}
+                            className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 px-12 rounded-full text-2xl shadow-[0_10px_20px_rgba(220,38,38,0.5)] transition-transform transform hover:scale-105 animate-bounce disabled:opacity-50 disabled:animate-none disabled:cursor-not-allowed"
+                        >
+                            🃏 Diamo le carte!
+                        </button>
+                    </div>
                 ) : (
                     <div className="mt-8 bg-gray-800/90 text-yellow-400 font-bold py-4 px-8 rounded-full text-lg sm:text-xl border border-gray-600 animate-pulse shadow-lg text-center">
                         ⏳ In attesa che l'Host avvii la partita...
