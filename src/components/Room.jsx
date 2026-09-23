@@ -234,7 +234,7 @@ export default function Room() {
 
         return (
             <div className="min-h-screen bg-green-900 flex flex-col items-center justify-center p-4 relative">
-                <button onClick={() => navigate('/')} className="absolute top-6 left-6 bg-green-800 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg border border-green-600 shadow-lg flex items-center gap-2 transition-colors">
+                <button onClick={handleLeave} className="absolute top-6 left-6 bg-green-800 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg border border-green-600 shadow-lg flex items-center gap-2 transition-colors">
                     🔙 Torna alla Home
                 </button>
 
@@ -299,7 +299,8 @@ export default function Room() {
                 
                 {/* ZONA INFERIORE: SPETTATORE O GIOCATORE UMANO */}
                 {isSpectator ? (
-                    <div className="absolute bottom-0 left-0 w-full bg-green-950 p-4 border-t-4 border-blue-500 rounded-t-3xl z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] flex flex-col items-center">
+                    <div className="w-full mt-auto relative bg-green-950 p-4 border-t-4 border-blue-500 rounded-t-3xl z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] flex flex-col items-center">
+                        
                         <div className="w-full flex justify-between items-center mb-3 px-2">
                             <h3 className="text-blue-400 font-black tracking-widest uppercase flex items-center gap-2">
                                 <span className="animate-pulse">🔴</span> In Diretta
@@ -486,7 +487,7 @@ export default function Room() {
                                 )}
 
                                 <button 
-                                    onClick={() => navigate('/')} 
+                                    onClick={handleLeave} 
                                     className="flex-1 w-full bg-red-800 hover:bg-red-700 text-white font-bold py-3 rounded-full text-lg sm:text-xl shadow-lg border border-red-500 transition-colors whitespace-nowrap flex items-center justify-center gap-2"
                                 >
                                     🚪 Abbandona
@@ -512,7 +513,7 @@ export default function Room() {
                 
                 {/* Bottone Sinistro: "Home" su mobile, "Torna alla Home" su PC */}
                 <button 
-                    onClick={() => navigate('/')}
+                    onClick={handleLeave}
                     className="bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-2 sm:px-6 rounded-lg transition-colors shadow-md flex items-center gap-1 sm:gap-2 text-xs sm:text-base flex-shrink-0"
                     title="Torna alla Home"
                 >
