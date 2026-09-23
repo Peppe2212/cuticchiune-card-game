@@ -3,7 +3,8 @@ import { ref, onValue } from "firebase/database";
 import { db } from '../services/firebase';
 import { sendMessage } from '../services/gameSync';
 
-export default function Chat({ roomId, playerName }) {
+// Aggiungi variant="game" tra i parametri
+export default function Chat({ roomId, playerName, variant = "game" }) {    
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([]);
     const [inputText, setInputText] = useState("");
@@ -94,20 +95,31 @@ export default function Chat({ roomId, playerName }) {
                 </div>
             )}
 
-            {/* BOTTONE FLUTTUANTE (Spostato in alto sopra la plancia, rimpicciolito su mobile) */}
+            {/* BOTTONE FLUTTUANTE (Adattivo: Gioco vs Lobby) */}
             <button 
                 onClick={() => setIsOpen(true)}
-                className="fixed right-3 sm:right-8 bottom-[260px] sm:bottom-40 z-[90] bg-blue-700 hover:bg-blue-600 text-white rounded-full w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center shadow-[0_4px_15px_rgba(0,0,0,0.6)] border-2 border-blue-400 transition-transform hover:scale-110"
+                className={`fixed z-[90] flex items-center justify-center font-bold transition-transform hover:scale-105 shadow-[0_4px_15px_rgba(0,0,0,0.6)] border-2 border-blue-400 rounded-full
+                    ${variant === 'lobby' 
+                        ? 'bottom-6 right-6 sm:bottom-8 sm:right-8 bg-blue-700 hover:bg-blue-600 text-white py-3 px-5 sm:px-6 text-sm sm:text-base gap-2' 
+                        : 'right-3 sm:right-6 bottom-[260px] sm:bottom-[280px] bg-blue-700 hover:bg-blue-600 text-white w-12 h-12 sm:w-14 sm:h-14'}`}
                 title="Apri Chat"
             >
-                <span className="text-xl sm:text-2xl">💬</span>
+                <span className={variant === 'lobby' ? "text-lg" : "text-xl sm:text-2xl"}>💬</span>
+                
+                {/* Testo visibile solo nella lobby */}
+                {variant === 'lobby' && <span>Apri Chat</span>}
+
+                {/* Pallino Notifiche (Posizionato in base alla forma del bottone) */}
                 {unread > 0 && (
-                    <span className="absolute -top-1 -left-1 bg-red-600 text-white text-[10px] sm:text-xs font-black w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full border-2 border-red-900 animate-pulse shadow-md">
+                    <span className={`absolute bg-red-600 text-white font-black flex items-center justify-center rounded-full border-2 border-red-900 animate-pulse shadow-md
+                        ${variant === 'lobby' 
+                            ? '-top-2 -right-2 text-[11px] sm:text-xs w-6 h-6' 
+                            : '-top-1 -left-1 text-[10px] sm:text-xs w-6 h-6 sm:w-7 sm:h-7'}`}>
                         {unread}
                     </span>
                 )}
             </button>
-
+            
             {/* PANNELLO DELLA CHAT */}
             {isOpen && (
                 <div className="fixed inset-y-0 right-0 w-full sm:w-[380px] bg-green-950 shadow-[0_0_50px_rgba(0,0,0,0.9)] z-[100] flex flex-col border-l-2 border-green-700 animate-[slideIn_0.2s_ease-out]">

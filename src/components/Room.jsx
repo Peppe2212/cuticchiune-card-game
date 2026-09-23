@@ -412,8 +412,7 @@ export default function Room() {
                 )}
 
                 {/* 🔴 INSERISCI LA CHAT QUI (Per averla durante la partita) */}
-                <Chat roomId={roomId} playerName={myName || 'Anonimo'} />
-            
+                    <Chat roomId={roomId} playerName={myName || 'Anonimo'} variant="game" />            
 
                 
             </div>
@@ -507,9 +506,8 @@ export default function Room() {
                     </div>
                 )
             )}
-            {/* 🔴 INSERISCI LA CHAT QUI (Per averla nella sala di attesa) */}
-            <Chat roomId={roomId} playerName={myName || 'Anonimo'} />
-
+            {/* 🔴 2. INCOLLA LA CHAT DELLA LOBBY QUI */}
+            <Chat roomId={roomId} playerName={myName || 'Anonimo'} variant="lobby" />
         </div>
 
     );
