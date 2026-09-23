@@ -148,7 +148,16 @@ export default function Table({ roomData, playerId, isGameOver, onReplaceWithBot
         {/* ========================================== */}
         {!isSpectator && roomData?.lastTrick && (
             <>
-            
+                {/* 1. Pulsante Fluttuante */}
+                {!showLastTrick && (
+                    <button 
+                        onClick={() => setShowLastTrick(true)}
+                        className="absolute top-4 right-2 sm:right-8 bg-black/60 hover:bg-black/80 text-white p-2 sm:px-3 sm:py-2 rounded-full border border-gray-500 z-[60] shadow-lg transition-colors text-xs sm:text-sm flex items-center gap-2"
+                    >
+                        👀 <span className="hidden sm:inline">Ultima Presa</span>
+                    </button>
+                )}
+
                 {/* 2. WIDGET ULTIMA PRESA (Compatto e fluttuante) */}
                 {showLastTrick && (
                     <div className="absolute top-4 sm:top-6 right-2 sm:right-8 bg-black/90 p-2 sm:p-4 rounded-xl border-2 border-yellow-600 z-[70] shadow-2xl backdrop-blur-md animate-[slideIn_0.2s_ease-out]">
