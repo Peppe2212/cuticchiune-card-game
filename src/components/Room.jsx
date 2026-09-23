@@ -79,18 +79,30 @@ export default function Room() {
         return randomMsg[Math.floor(Math.random() * randomMsg.length)];
     }, [roomData?.status, roomData?.singhe, playerId, humanIds]);
 
-    const handleLeave = async () => {
+    const handleLeave = async (e) => {
+        if (e) e.preventDefault();
+
         const isPlaying = activeStates.includes(roomData?.status) && roomData?.status !== 'game_over';
         
         if (isPlaying) {
-            if (!window.confirm("La partita è in corso! Se esci verrai sostituito da un Bot. Confermi?")) return;
+            // Chiediamo conferma solo ai giocatori attivi, non agli spettatori
+            if (!isSpectator) {
+                if (!window.confirm("La partita è in corso! Se esci verrai sostituito da un Bot. Confermi?")) {
+                    return; // Si ferma qui se l'utente clicca Annulla
+                }
+            }
         }
 
-        // Se l'utente è effettivamente seduto, puliamo il database
-        if (hasJoined) {
-            await leaveAndCleanRoom(roomId, playerId);
+        // 1. Avvisiamo Firebase per la trasformazione in Bot (ignorando gli spettatori)
+        try {
+            if (!isSpectator) {
+                await leaveAndCleanRoom(roomId, playerId);
+            }
+        } catch (error) {
+            console.error("Errore durante l'uscita:", error);
         }
         
+        // 2. Solo DOPO aver salvato sul database, torniamo alla Home
         navigate('/');
     };
 
