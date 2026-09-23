@@ -517,7 +517,7 @@ export async function sendMessage(roomId, playerName, text) {
 }
 
 
-// 15. Disconnessione morbida (Permette la riconnessione)
+// 15. Disconnessione morbida (Gestisce anche l'abbandono a fine partita)
 export async function leaveAndCleanRoom(roomId, playerId) {
     const roomRef = ref(db, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
@@ -527,11 +527,10 @@ export async function leaveAndCleanRoom(roomId, playerId) {
     const players = roomData.players || {};
 
     if (!roomData.status || roomData.status === 'waiting') {
-        // Se siete solo in LOBBY e non state giocando, libera il posto
+        // Se siete solo in LOBBY (partita mai avviata), libera fisicamente il posto
         await remove(ref(db, `rooms/${roomId}/players/${playerId}`));
-    } else if (roomData.status !== 'game_over') {
-        // SE LA PARTITA E' IN CORSO: Non eliminare nulla! 
-        // Trasforma solo in Bot per far continuare gli altri (o mantenere in vita la stanza)
+    } else {
+        // SE LA PARTITA È INIZIATA O È IN SCHERMATA DI FINE GIOCO: Trasforma sempre in Bot!
         const currentName = players[playerId]?.name || "Anonimo";
         if (!currentName.includes('Bot')) {
             await update(ref(db, `rooms/${roomId}/players/${playerId}`), {

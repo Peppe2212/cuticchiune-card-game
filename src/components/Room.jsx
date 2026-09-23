@@ -38,17 +38,27 @@ export default function Room() {
 
     const activeStates = ['playing', 'resolving_trick', 'suit_penalty', 'between_hands', 'game_over'];
     
-    // GERARCHIA HOST (Per evitare doppi click)
-    const humanIds = Object.keys(roomData?.players || {}).filter(id => !roomData.players[id]?.name.includes('Bot'));
-    const originalHost = roomData?.hostId;
+    /// GERARCHIA HOST (Per evitare colpi di stato)
+    const allPlayerIds = Object.keys(roomData?.players || {});
+    
+    // L'host originale è quello salvato nel DB, oppure il creatore originario del tavolo (la prima "sedia")
+    const originalHost = roomData?.hostId || allPlayerIds[0];
+    
+    // Trova tutti gli umani veri seduti in questo momento
+    const humanIds = allPlayerIds.filter(id => !roomData.players[id]?.name.includes('Bot'));
+    
+    // Se il fondatore è ancora al tavolo (ed è umano), rimane lui l'Host indiscusso. 
+    // Solo se il fondatore abbandona (diventando Bot), i poteri passano al prossimo umano.
     const activeHostId = humanIds.includes(originalHost) ? originalHost : humanIds[0];
     const isRoomHost = activeHostId === playerId;
 
     // VARIABILI PER GAME OVER E SFOTTI
     const myName = roomData?.players?.[playerId]?.name;
     const amILoser = roomData?.losers?.includes(myName);
+    
     // Controlla se la motivazione contiene "10" (partita normale) o "6" (partita veloce)
     const isTenSinghe = roomData?.gameOverReason?.includes('10') || roomData?.gameOverReason?.includes('6');
+    
     // GENERATORE MESSAGGI GOLIARDICI (Tra una mano e l'altra)
     const goliardicMessage = useMemo(() => {
         if (roomData?.status !== 'between_hands') return "";
