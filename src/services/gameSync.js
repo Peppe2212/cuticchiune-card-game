@@ -1,4 +1,4 @@
-import { ref, get, set, update, onValue } from "firebase/database";
+import { ref, get, set, update, onValue, push } from "firebase/database";
 import { db } from "./firebase";
 import { createDeck, shuffleDeck, dealCards } from '../logic/deck';
 import { findFiveOfCoinsHolder, isValidMove, determineTrickWinner, calculateTrickPoints } from '../logic/rules';
@@ -493,4 +493,17 @@ export async function replacePlayerWithBot(roomId, targetId, currentName) {
     [`rooms/${roomId}/players/${targetId}/name`]: `Bot ${currentName}`
   };
   await update(ref(db), updates);
+}
+
+// 14. Invia un messaggio nella chat del tavolo
+export async function sendMessage(roomId, playerName, text) {
+  if (!text || !text.trim()) return;
+  
+  // push() crea in automatico un ID univoco per ogni nuovo messaggio
+  const chatRef = ref(db, `rooms/${roomId}/chat`);
+  await push(chatRef, {
+    sender: playerName,
+    text: text.trim(),
+    timestamp: Date.now()
+  });
 }

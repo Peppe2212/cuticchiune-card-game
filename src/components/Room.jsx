@@ -9,6 +9,7 @@ import {
 
 import Player from './Player';
 import Table from './Table';
+import Chat from './Chat'; 
 
 export default function Room() {
     const { roomId } = useParams();
@@ -406,10 +407,15 @@ export default function Room() {
                                     🚪 Abbandona
                                 </button>
                             </div>
-                        </div>
-                        
+                        </div>  
                     </div>
                 )}
+
+                {/* 🔴 INSERISCI LA CHAT QUI (Per averla durante la partita) */}
+                <Chat roomId={roomId} playerName={myName || 'Anonimo'} />
+            
+
+                
             </div>
         );
         
@@ -501,6 +507,10 @@ export default function Room() {
                     </div>
                 )
             )}
+            {/* 🔴 INSERISCI LA CHAT QUI (Per averla nella sala di attesa) */}
+            <Chat roomId={roomId} playerName={myName || 'Anonimo'} />
+
         </div>
+
     );
 }

@@ -55,3 +55,14 @@ html, body {
   width: 100%;
   height: 100%;
 }
+
+/* Nasconde la scrollbar per Chrome, Safari e dispositivi mobile */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/* Nasconde la scrollbar per Firefox, Edge e IE */
+.scrollbar-hide {
+    -ms-overflow-style: none;  /* Edge */
+    scrollbar-width: none;     /* Firefox */
+}
