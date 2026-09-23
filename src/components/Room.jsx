@@ -117,7 +117,8 @@ export default function Room() {
     // ==========================================
     // MOTORI LOGICI E RICONNESSIONE AUTOMATICA
     // ==========================================
-
+    const turnName = roomData?.players?.[roomData?.turnIndex]?.name;
+    
     useEffect(() => {
         let unsubscribe = () => {}; // Funzione vuota di default
 
@@ -154,19 +155,11 @@ export default function Room() {
 
    // 1. Il Bot gioca la sua carta
     useEffect(() => {
-        const turnId = roomData?.turnIndex;
-        const turnName = roomData?.players?.[turnId]?.name;
-        
-        // 🔴 1. Usiamo startsWith('Bot ') per essere precisissimi ed evitare errori con nomi simili
         if (roomData?.status === 'playing' && turnName?.startsWith('Bot ') && isRoomHost) {
             const timer = setTimeout(() => playBotTurn(roomId).catch(console.error), 1200);
             return () => clearTimeout(timer);
         }
-        
-    // 🔴 2. LA MAGIA È QUI: Abbiamo aggiunto 'turnName' alle dipendenze!
-    // Se tu subentri durante questo secondo e due, il nome cambia, React se ne accorge, 
-    // lancia il clearTimeout distruggendo il timer del Bot e ti lascia il controllo totale.
-    }, [roomData?.turnIndex, roomData?.status, roomId, isRoomHost, turnName]);
+    }, [roomData?.status, roomId, isRoomHost, turnName]);
     
     // 2. Risoluzione della presa a terra
     useEffect(() => {
