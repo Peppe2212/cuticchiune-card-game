@@ -517,24 +517,19 @@ export async function sendMessage(roomId, playerName, text) {
 }
 
 
-// 15. Disconnessione morbida (Gestisce anche l'abbandono a fine partita)
-export async function leaveAndCleanRoom(roomId, playerId) {
-    const roomRef = ref(db, `rooms/${roomId}`);
-    const snapshot = await get(roomRef);
-    if (!snapshot.exists()) return;
-
-    const roomData = snapshot.val();
-    const players = roomData.players || {};
-
-    if (!roomData.status || roomData.status === 'waiting') {
-        // Se siete solo in LOBBY (partita mai avviata), libera fisicamente il posto
-        await remove(ref(db, `rooms/${roomId}/players/${playerId}`));
+// 15. Disconnessione e subentro immediato (senza query extra)
+export async function leaveAndCleanRoom(roomId, playerId, isGameStarted, playerName) {
+    if (!isGameStarted) {
+        // LOBBY: Eliminiamo fisicamente la "sedia"
+        await update(ref(db), {
+            [`rooms/${roomId}/players/${playerId}`]: null
+        });
     } else {
-        // SE LA PARTITA È INIZIATA O È IN SCHERMATA DI FINE GIOCO: Trasforma sempre in Bot!
-        const currentName = players[playerId]?.name || "Anonimo";
-        if (!currentName.includes('Bot')) {
+        // IN PARTITA O A FINE GIOCO: Aggiungiamo l'etichetta Bot al tuo nome
+        if (!playerName.includes('Bot')) {
+            const cleanName = playerName.replace('Bot ', ''); // Evita doppi nomi strani
             await update(ref(db, `rooms/${roomId}/players/${playerId}`), {
-                name: `Bot ${currentName}`
+                name: `Bot ${cleanName}`
             });
         }
     }

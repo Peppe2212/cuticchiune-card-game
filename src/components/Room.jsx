@@ -79,43 +79,42 @@ export default function Room() {
         return randomMsg[Math.floor(Math.random() * randomMsg.length)];
     }, [roomData?.status, roomData?.singhe, playerId, humanIds]);
 
-    const handleLeave = async (e) => {
-        if (e) e.preventDefault();
-
-        const isPlaying = activeStates.includes(roomData?.status) && roomData?.status !== 'game_over';
-        
-        if (isPlaying) {
-            // Chiediamo conferma solo ai giocatori attivi, non agli spettatori
-            if (!isSpectator) {
-                if (!window.confirm("La partita è in corso! Se esci verrai sostituito da un Bot. Confermi?")) {
-                    return; // Si ferma qui se l'utente clicca Annulla
-                }
-            }
-        }
-
-        // 1. Avvisiamo Firebase per la trasformazione in Bot (ignorando gli spettatori)
-        try {
-            if (!isSpectator) {
-                await leaveAndCleanRoom(roomId, playerId);
-            }
-        } catch (error) {
-            console.error("Errore durante l'uscita:", error);
-        }
-        
-        // 2. Solo DOPO aver salvato sul database, torniamo alla Home
-        navigate('/');
-    };
-
     const isSpectator = hasJoined && roomData?.players && !roomData.players[playerId];
     const availableBots = Object.entries(roomData?.players || {}).filter(([id, p]) => p.name.includes('Bot'));
 
     const handleTakeover = async (botId) => {
         await takeoverBot(roomId, botId, playerName);
-        // Sovrascrive l'ID locale e ricarica la pagina per prendere il posto
         localStorage.setItem(`cuticchiune_${roomId}`, botId);
         window.location.reload(); 
     };
 
+    // 🔴 Il nuovo handleLeave sicuro e infallibile
+    const handleLeave = async (e) => {
+        if (e) e.preventDefault(); 
+        
+        const isGameStarted = roomData?.status && roomData.status !== 'waiting';
+        const isPlaying = activeStates.includes(roomData?.status) && roomData?.status !== 'game_over';
+        
+        if (isPlaying && !isSpectator) {
+            if (!window.confirm("La partita è in corso! Se esci verrai sostituito da un Bot. Confermi?")) {
+                return;
+            }
+        }
+
+        try {
+            if (hasJoined && !isSpectator) {
+                // Adesso aspettiamo fiduciosi: il server applicherà il "Bot" in 1 decimo di secondo!
+                await leaveAndCleanRoom(roomId, playerId, isGameStarted, playerName);
+            }
+        } catch (err) {
+            console.error("Errore server durante l'uscita:", err);
+        }
+        
+        // E infine scappiamo alla Home
+        navigate('/');
+    };
+
+    
     // ==========================================
     // MOTORI LOGICI E RICONNESSIONE AUTOMATICA
     // ==========================================
