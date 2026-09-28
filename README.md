@@ -2,6 +2,7 @@
 
 Cuticchiune è un gioco di carte multiplayer in tempo reale sviluppato in **React** e **Firebase Realtime Database**. Il sistema è progettato per essere *fault-tolerant*, gestendo disconnessioni improvvise, subentri in corsa e automazione tramite bot. (Seguiranno ulteriori sviluppi per il miglioramento generale del sistema) 
 
+Per giocarci: https://cuticchiune-card-game.vercel.app
 ---
 
 ## ✨ Features Principali
